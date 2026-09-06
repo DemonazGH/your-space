@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import worker,{validate,tokenHash} from '../worker/index.js';
+const sample=()=>({schemaVersion:1,blockId:'first-steps-v1',consent:true,language:'ru',sessionId:'11111111-1111-4111-8111-111111111111',revision:1,completed:false,answers:{purpose:{values:['try'],text:'Пример',skipped:false}}});
+test('Reject invalid choices, path traversal and missing consent',()=>{for(const patch of [{sessionId:'../../evil'},{consent:false},{answers:{purpose:{values:['invalid'],text:'',skipped:false}}},{answers:{activities:{values:['play','private'],text:'',skipped:false}}}])assert.throws(()=>validate({...sample(),...patch}));assert.equal(validate(sample()).answers.purpose.text,'Пример');});
+test('Reject unauthenticated callers without touching storage',async()=>{const r=await worker.fetch(new Request('https://example.com/answers',{method:'POST',headers:{Origin:'https://example.org'}}),{ALLOWED_ORIGIN:'https://example.org',GITHUB_TOKEN:'fake'});assert.equal(r.status,401);});
+test('Reject wrong origin and do not reflect it',async()=>{const r=await worker.fetch(new Request('https://example.com/answers',{headers:{Origin:'https://evil.org'}}),{ALLOWED_ORIGIN:'https://example.org'});assert.equal(r.status,403);assert.equal(r.headers.get('Access-Control-Allow-Origin'),null);});
+test('Save test responses only to test namespace, preserve Unicode, ignore client mode',async()=>{
+ const oldFetch=globalThis.fetch,token='a'.repeat(64);let written;
+ globalThis.fetch=async(url,options)=>{assert.match(url,/contents\/test\//);if(options.method==='PUT'){written=JSON.parse(options.body);return Response.json({});}return new Response('',{status:404});};
+ try{const env={ALLOWED_ORIGIN:'https://example.org',GITHUB_TOKEN:'fake',DATA_REPO:'owner/data',TEST_TOKEN_HASH:await tokenHash(token)};
+ const r=await worker.fetch(new Request('https://api/answers',{method:'POST',headers:{Origin:env.ALLOWED_ORIGIN,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({...sample(),mode:'participant'})}),env);assert.equal(r.status,200);const saved=JSON.parse(Buffer.from(written.content,'base64').toString());assert.equal(saved.mode,'test');assert.equal(saved.answers.purpose.text,'Пример');
+ }finally{globalThis.fetch=oldFetch;}
+});
+test('Older revisions cannot overwrite newer answers',async()=>{const oldFetch=globalThis.fetch,token='b'.repeat(64);let calls=0;globalThis.fetch=async()=>{calls++;return Response.json({sha:'x',content:Buffer.from(JSON.stringify({revision:5})).toString('base64')});};try{const r=await worker.fetch(new Request('https://api/answers',{method:'POST',headers:{Origin:'https://example.org',Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(sample())}),{ALLOWED_ORIGIN:'https://example.org',GITHUB_TOKEN:'fake',DATA_REPO:'owner/data',PARTICIPANT_TOKEN_HASH:await tokenHash(token)});assert.equal(r.status,200);assert.equal(calls,1);assert.equal((await r.json()).revision,5);}finally{globalThis.fetch=oldFetch;}});

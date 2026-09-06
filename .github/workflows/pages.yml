@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '22'
       - run: node --test tests/*.test.js
-      - run: mkdir public && cp index.html app.js questions.js style.css public/
+      - run: mkdir public && cp index.html app.js cloud.js questions.js style.css public/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
