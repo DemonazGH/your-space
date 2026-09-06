@@ -1,4 +1,4 @@
-# Personal Guide / Персональный путеводитель
+# Artsiom’s Personal Guide / Персональный путеводитель Артёма
 
 Mobile-first bilingual pilot for voluntary self-reflection. Six questions, optional text, skip/pause, local draft, answer review and explicit JSON export. No analytics, external fonts, API keys, cloud transmission, or diagnostic scoring.
 
