@@ -15,7 +15,7 @@ test('Cloud flow requires consent, survives language change, and marks completio
  assert.equal(queued.at(-1).consent,false);
  element('#consent').onchange({target:{checked:true}});element('#start').onclick();
  element('#note').oninput({target:{value:'example'}});languages[1].onclick();
- assert.match(element('#app').innerHTML,/Think of a game/);assert.match(element('#app').innerHTML,/example/);
+ assert.ok(element('#app').innerHTML.includes(block.questions[0].title[1]));assert.match(element('#app').innerHTML,/example/);
  for(let i=0;i<block.questions.length;i++)element('#next').onclick();
  element('#finish').onclick();assert.equal(queued.at(-1).completed,true);assert.equal(queued.at(-1).cloudConsentVersion,1);
  assert.match(element('#app').innerHTML,/save status is shown/);
