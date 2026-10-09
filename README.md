@@ -29,3 +29,11 @@ Downloads contain plain-text answers. The participant can review answers and dow
 ## Next-set review
 
 Review only an explicitly shared export. Separate quoted observations, competing explanations, unknowns and follow-up questions. Never infer a diagnosis, motivation or symptom from a skipped question or single choice. Respect a request not to continue. Give the participant a way to correct summaries. Update questions only as a new block with a new storage key and stable choice IDs, preserving the previous export schema.
+
+## Compass Telegram bootstrap
+
+`worker/telegram.js` handles private invitation registration and `/start`, `/guide`, `/status`, `/stop`, `/resume`, `/help`. Unknown accounts and groups are ignored. Admin gets the test guide link; participant gets the participant link. Role bindings and opt-out state live in the private data repository under `compass/`. Each role can bind once; rebinding requires deliberate administrative intervention. No questionnaire answers are exposed by bot commands.
+
+Secrets: TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, TELEGRAM_SETUP_KEY, TELEGRAM_ADMIN_INVITE, TELEGRAM_PARTICIPANT_INVITE, TELEGRAM_TEST_ACCESS, TELEGRAM_PARTICIPANT_ACCESS. Never commit these or invite URLs. Authenticated POST /telegram/setup verifies the bot username and registers the webhook and command menu. Webhook validates Telegram's secret header, permits only private user chats, and persists processed update IDs before replying. If sending fails after persistence, the command reply may be lost; users can issue the command again. Webhook uses max_connections=1; GitHub SHA conflicts fail closed for retry.
+
+This is the connection stage only. Publication-triggered notifications, event scheduling, quiet hours, and reminder controls are not implemented yet. No outbound messages occur except replies to commands from registered accounts. Before enabling scheduled notifications, implement delivery tracking and respect stored enabled=false.

@@ -1,3 +1,4 @@
+import {handleTelegram} from './telegram.js';
 import {blocks} from '../questions.js';
 
 export async function tokenHash(value) {
@@ -26,6 +27,7 @@ function decode64(s){return new TextDecoder().decode(Uint8Array.from(atob(s.repl
 
 export default {
  async fetch(request,env) {
+  if(new URL(request.url).pathname.startsWith('/telegram/'))return handleTelegram(request,env);
   const headers={'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Vary':'Origin'};
   const reply=(status,body)=>new Response(JSON.stringify(body),{status,headers});
   const origin=request.headers.get('Origin');
