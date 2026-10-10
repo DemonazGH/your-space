@@ -30,3 +30,7 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Notify Compass after successful publication
+        env:
+          TELEGRAM_NOTIFY_KEY: ${{ secrets.TELEGRAM_NOTIFY_KEY }}
+        run: node scripts/notify-block.mjs

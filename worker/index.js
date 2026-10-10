@@ -1,4 +1,5 @@
-import {handleTelegram} from './telegram.js';
+import {notifyBlock} from './notifications.js';
+import {handleTelegram,matches} from './telegram.js';
 import {blocks} from '../questions.js';
 
 export async function tokenHash(value) {
@@ -26,7 +27,18 @@ function base64(s){const bytes=new TextEncoder().encode(s);let text='';for(const
 function decode64(s){return new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,'')),c=>c.charCodeAt(0)));}
 
 export default {
+ async scheduled(controller,env,ctx) {
+  ctx.waitUntil(notifyBlock(env,'evening',new Date(controller.scheduledTime)));
+ },
  async fetch(request,env) {
+  if(new URL(request.url).pathname==='/telegram/notify') {
+   if(request.method!=='POST'||!env.TELEGRAM_NOTIFY_KEY||!matches(request.headers.get('Authorization'),`Bearer ${env.TELEGRAM_NOTIFY_KEY}`))return Response.json({error:'unauthorized'},{status:401});
+   try {
+    const {blockId}=await request.json();
+    if(blockId!==blocks[blocks.length-1].id)return Response.json({error:'block_mismatch'},{status:409});
+    return Response.json(await notifyBlock(env));
+   }catch{return Response.json({error:'notification_failed'},{status:503});}
+  }
   if(new URL(request.url).pathname.startsWith('/telegram/'))return handleTelegram(request,env);
   const headers={'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Vary':'Origin'};
   const reply=(status,body)=>new Response(JSON.stringify(body),{status,headers});

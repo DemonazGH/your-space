@@ -1,13 +1,13 @@
 import {block} from '../questions.js';
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export function matches(a,b){if(typeof a!=='string'||typeof b!=='string'||!b||a.length!==b.length)return false;let n=0;for(let i=0;i<a.length;i++)n|=a.charCodeAt(i)^b.charCodeAt(i);return n===0;}
-async function telegram(env,method,body={}){
+export async function telegram(env,method,body={}){
  const r=await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/${method}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
  const data=await r.json();if(!r.ok||!data.ok)throw Error('telegram_failed');return data.result;
 }
 function encode(x){return btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(x))));}
-function decode(x){return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(x.replace(/\n/g,'')),c=>c.charCodeAt(0))));}
-async function state(env,role,value,sha){
+export function decode(x){return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(x.replace(/\n/g,'')),c=>c.charCodeAt(0))));}
+export async function state(env,role,value,sha){
  const url=`https://api.github.com/repos/${env.DATA_REPO}/contents/compass/${role}.json`;
  const headers={Authorization:`Bearer ${env.GITHUB_TOKEN}`,Accept:'application/vnd.github+json','User-Agent':'compass','Content-Type':'application/json'};
  const r=await fetch(url,{headers,...(value?{method:'PUT',body:JSON.stringify({message:'Update Compass registration',content:encode(value),...(sha?{sha}:{})})}:{})});
@@ -51,8 +51,8 @@ export async function handleTelegram(request,env){
    if(!token)throw Error('missing_access');
    text=`${block.label[0]}. Можно ответить, когда будет удобно.`;
    markup={inline_keyboard:[[{text:'Открыть путеводитель',url:`https://demonazgh.github.io/your-space/#access=${token}&mode=${role==='admin'?'test':'participant'}`}]]};
-  }else if(cmd==='/status')text=`Compass подключён. Роль: ${role==='admin'?'администратор':'участник'}. Уведомления: ${record.value.enabled?'включены':'отключены'}.\nСейчас проверяем подключение. Автоуведомления и события ещё не настроены.`;
-  else text=`Привет! Я Compass 🧭 — бот персонального путеводителя. ${role==='admin'?'Твой аккаунт подключён как администратор.':'Ты подключён по личному приглашению.'}\n/guide — открыть путеводитель${role==='admin'?' в тестовом режиме':''}\n/status — статус\n/stop — отключить уведомления\n/resume — включить снова\nСейчас проверяем подключение; напоминания о событиях ещё не настроены. Telegram ID и настройки сохраняются на сервере Cloudflare и в приватном хранилище Дмитрия. Ответы на анкету здесь не показываются.`;
+  }else if(cmd==='/status')text=`Compass подключён. Роль: ${role==='admin'?'администратор':'участник'}. Уведомления: ${record.value.enabled?'включены':'отключены'}.\nНовые блоки: сообщение после публикации и ежедневно в 21:00 по Минску, пока блок не завершён. Напоминания о событиях пока не настроены.`;
+  else text=`Привет! Я Compass 🧭 — бот персонального путеводителя. ${role==='admin'?'Твой аккаунт подключён как администратор.':'Ты подключён по личному приглашению.'}\n/guide — открыть путеводитель${role==='admin'?' в тестовом режиме':''}\n/status — статус\n/stop — отключить уведомления\n/resume — включить снова\nО новых блоках сообщаю после публикации и напоминаю ежедневно в 21:00 по Минску до завершения. Напоминания о событиях пока не настроены. Telegram ID и настройки сохраняются на сервере Cloudflare и в приватном хранилище Дмитрия. Ответы на анкету здесь не показываются.`;
   // Persist before replying so retried Telegram updates cannot repeat registration or commands.
   record.value.lastUpdate=update.update_id;await state(env,role,record.value,record.sha);
   await telegram(env,'sendMessage',{chat_id:m.chat.id,text,link_preview_options:{is_disabled:true},...(markup?{reply_markup:markup}:{})});
