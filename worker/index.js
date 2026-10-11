@@ -1,4 +1,4 @@
-import {notifyBlock} from './notifications.js';
+import {notifyBlock,thankCompletedBlock,allQuestionsHandled} from './notifications.js';
 import {handleTelegram,matches} from './telegram.js';
 import {blocks} from '../questions.js';
 
@@ -21,16 +21,22 @@ export function validate(x) {
     if(a.skipped&&(a.values.length||a.text.trim()))throw Error('Invalid skip');
     answers[id]={values:a.values,text:a.text,skipped:a.skipped};
   }
+  if(block.requiresFinish&&x.completed&&!allQuestionsHandled(block,answers))throw Error('Incomplete finish');
   return {schemaVersion:1,blockId:block.id,blockVersion:block.version,sessionId:x.sessionId,revision:x.revision,language:x.language,completed:x.completed,consent:true,answers};
 }
 function base64(s){const bytes=new TextEncoder().encode(s);let text='';for(const b of bytes)text+=String.fromCharCode(b);return btoa(text);}
 function decode64(s){return new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g,'')),c=>c.charCodeAt(0)));}
+async function completionThanks(env,response,ctx){
+  // Notification errors never turn an already saved answer into a failed save.
+  const task=thankCompletedBlock(env,response).catch(()=>({sent:false,reason:'notification_failed'}));
+  if(ctx?.waitUntil)ctx.waitUntil(task);else await task;
+}
 
 export default {
  async scheduled(controller,env,ctx) {
   ctx.waitUntil(notifyBlock(env,'evening',new Date(controller.scheduledTime)));
  },
- async fetch(request,env) {
+ async fetch(request,env,ctx) {
   if(new URL(request.url).pathname==='/telegram/notify') {
    if(request.method!=='POST'||!env.TELEGRAM_NOTIFY_KEY||!matches(request.headers.get('Authorization'),`Bearer ${env.TELEGRAM_NOTIFY_KEY}`))return Response.json({error:'unauthorized'},{status:401});
    try {
@@ -64,11 +70,12 @@ export default {
   const ghHeaders={'Authorization':`Bearer ${env.GITHUB_TOKEN}`,'Accept':'application/vnd.github+json','User-Agent':'personal-guide-api','X-GitHub-Api-Version':'2022-11-28'};
   try {
     const previous=await fetch(url,{headers:ghHeaders});let sha;
-    if(previous.ok){const file=await previous.json();sha=file.sha;const saved=JSON.parse(decode64(file.content));if(saved.revision>=data.revision)return reply(200,{saved:true,revision:saved.revision,mode});}
+    if(previous.ok){const file=await previous.json();sha=file.sha;const saved=JSON.parse(decode64(file.content));if(saved.revision>=data.revision){await completionThanks(env,{...saved,mode},ctx);return reply(200,{saved:true,revision:saved.revision,mode});}}
     else if(previous.status!==404)return reply(502,{error:'storage_unavailable'});
     const savedAt=new Date().toISOString();
     const result=await fetch(url,{method:'PUT',headers:{...ghHeaders,'Content-Type':'application/json'},body:JSON.stringify({message:`Save ${mode} response`,content:base64(JSON.stringify({...data,mode,savedAt},null,2)),...(sha?{sha}:{})})});
     if(!result.ok)return reply(result.status===409||result.status===422?409:502,{error:'save_failed'});
+    await completionThanks(env,{...data,mode,savedAt},ctx);
     return reply(200,{saved:true,revision:data.revision,mode,savedAt});
   }catch{return reply(502,{error:'storage_unavailable'});}
  }

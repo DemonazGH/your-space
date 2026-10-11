@@ -2,6 +2,32 @@ import {block} from '../questions.js';
 import {state,telegram,decode} from './telegram.js';
 const headers=env=>({Authorization:`Bearer ${env.GITHUB_TOKEN}`,Accept:'application/vnd.github+json','User-Agent':'compass'});
 export const minskDate=date=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Minsk',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+export function allQuestionsHandled(definition,answers){
+ return definition.questions.every(q=>{
+  const answer=answers?.[q.id];
+  return !!answer&&(answer.skipped===true||(Array.isArray(answer.values)&&answer.values.length>0)||(typeof answer.text==='string'&&answer.text.trim().length>0));
+ });
+}
+export async function thankCompletedBlock(env,response,now=new Date()){
+ // Older blocks used automatic completion; only an explicit finish in the
+ // current block may trigger a personal thank-you.
+ if(!block.requiresFinish||response?.blockId!==block.id||response.mode!=='participant'||response.completed!==true||!allQuestionsHandled(block,response.answers))return {sent:false,reason:'not_applicable'};
+ const participant=(await state(env,'participant')).value;
+ if(!participant?.enabled)return {sent:false,reason:'disabled_or_unregistered'};
+ const key=`deliveries/${block.id}-completion`;
+ const prior=await state(env,key);
+ if(prior.value){if(prior.value.status==='sent')return {sent:false,reason:'already_sent'};return {sent:false,reason:'delivery_requires_review'};}
+ // Claim once per block, across sessions and save retries. An uncertain Telegram
+ // send is never repeated automatically because sendMessage has no idempotency key.
+ const claim={blockId:block.id,kind:'completion',status:'claimed',sessionId:response.sessionId,revision:response.revision,createdAt:now.toISOString()};
+ await state(env,key,claim);
+ const latest=(await state(env,'participant')).value;
+ if(!latest?.enabled||latest.chatId!==participant.chatId)return {sent:false,reason:'disabled'};
+ const result=await telegram(env,'sendMessage',{chat_id:participant.chatId,text:'Thanks, Artsiom! Your answers are saved. Each small step helps you learn more about yourself. You can take a break now.',link_preview_options:{is_disabled:true}});
+ const current=await state(env,key);
+ await state(env,key,{...claim,status:'sent',sentAt:new Date().toISOString(),messageId:result.message_id},current.sha);
+ return {sent:true,blockId:block.id,messageId:result.message_id};
+}
 async function completed(env){
  const root=`https://api.github.com/repos/${env.DATA_REPO}`;
  const r=await fetch(`${root}/git/trees/main?recursive=1`,{headers:headers(env)});if(!r.ok)throw Error('storage_unavailable');
