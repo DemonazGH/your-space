@@ -4,22 +4,27 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 function client({token='a'.repeat(64),mode='test'}={}){
- const jobs=new Map(),sent=[],requests=[],events={},documentEvents={},statuses=[];
+ const jobs=new Map(),sent=[],requests=[],events={},documentEvents={},statuses=[],sends=[];
  let now=0,nextId=0,response=()=>Response.json({saved:true,revision:99});
  const context={URLSearchParams,location:{hash:`#access=${token}&mode=${mode}`,pathname:'/',search:''},sessionStorage:{setItem(){},getItem(){return null;}},history:{replaceState(){}},window:{addEventListener(k,v){events[k]=v;}},document:{visibilityState:'visible',addEventListener(k,v){documentEvents[k]=v;}},navigator:{onLine:true},crypto,AbortController,
   setTimeout(fn,delay=0){const id=++nextId;jobs.set(id,{fn,at:now+delay});return id;},clearTimeout(id){jobs.delete(id);},
-  fetch:async(url,opts)=>{sent.push(JSON.parse(opts.body));requests.push({url,...opts});return response(opts);}
+  fetch:async(url,opts)=>{sent.push(JSON.parse(opts.body));requests.push({url,...opts});return response(opts);},
+  observeSend:promise=>sends.push(promise)
  };
  vm.createContext(context);
  const src=readFileSync(new URL('../cloud.js',import.meta.url),'utf8').replaceAll('export ','');
- vm.runInContext(src+'\nglobalThis.api={queue,cancel,retrySave,subscribe,cloudEnabled,testMode};',context);
+ vm.runInContext(src+`\nconst originalSend=send;
+ send=(...args)=>{const promise=originalSend(...args);observeSend(promise);return promise;};
+ globalThis.api={queue,cancel,retrySave,subscribe,cloudEnabled,testMode};`,context);
  context.api.subscribe(status=>statuses.push(status));
+ // Native event listeners may discard send's Promise. Await the calls started by
+ // this event, rather than assuming a fixed number of Response.json microtasks.
+ const invoke=async callback=>{const from=sends.length;await callback?.();await Promise.all(sends.slice(from));};
  return {api:context.api,sent,requests,statuses,context,events,jobs,
   respond(fn){response=fn;},fail(status=503){response=()=>new Response('',{status});},
-  async event(name){await events[name]?.();await this.settle();},
-  async visible(value){context.document.visibilityState=value;await documentEvents.visibilitychange();await this.settle();},
-  async settle(){for(let i=0;i<6;i++)await Promise.resolve();},
-  async tick(){const next=[...jobs.entries()].sort((a,b)=>a[1].at-b[1].at||a[0]-b[0])[0];if(next){jobs.delete(next[0]);now=next[1].at;await next[1].fn();await this.settle();}},
+  async event(name){await invoke(events[name]);},
+  async visible(value){context.document.visibilityState=value;await invoke(documentEvents.visibilitychange);},
+  async tick(){const next=[...jobs.entries()].sort((a,b)=>a[1].at-b[1].at||a[0]-b[0])[0];if(next){jobs.delete(next[0]);now=next[1].at;await invoke(next[1].fn);}},
   delay(){return jobs.size?Math.min(...[...jobs.values()].map(job=>job.at-now)):null;}
  };
 }
@@ -65,9 +70,19 @@ test('Hiding or leaving a page flushes the latest completed snapshot with keepal
  }
 });
 
+test('Visibility helper waits for acknowledgment parsing even when the native listener returns nothing',async()=>{
+ const c=client(),parsed=deferred(),parsingStarted=deferred();
+ c.respond(()=>({ok:true,json(){parsingStarted.resolve();return parsed.promise;}}));
+ c.api.queue(state(),'first-steps-v1');
+ const hiding=c.visible('hidden');await parsingStarted.promise;
+ assert.equal(c.statuses.at(-1),'saving');
+ parsed.resolve({saved:true,revision:1});await hiding;
+ assert.equal(c.statuses.at(-1),'saved');assert.equal(c.jobs.size,0);
+});
+
 test('In-flight background saves are serialized and promptly drain the newer completion',async()=>{
  const c=client(),s=state(),first=deferred();c.respond(()=>first.promise);
- c.api.queue(s,'first-steps-v1');const sending=c.api.retrySave();await c.settle();
+ c.api.queue(s,'first-steps-v1');const sending=c.api.retrySave();
  assert.equal(c.sent.length,1);assert.equal(c.requests[0].keepalive,true);
  s.completed=true;s.answers.purpose.text='latest';c.api.queue(s,'first-steps-v1');await c.event('pagehide');
  assert.equal(c.sent.length,1);assert.equal(c.statuses.at(-1),'pending');
