@@ -12,3 +12,9 @@
 .finish-button:disabled{opacity:1;background:#26364e;color:#aebbd1;border-color:#465770;box-shadow:none;cursor:default}
 .finish-button:enabled:hover{background:linear-gradient(120deg,#c0f8ec,#d0eeff);border-color:white}
 @media(max-width:480px){.finish-panel{bottom:8px;padding:14px;margin-top:22px}.finish-button{font-size:19px;padding:13px;gap:10px}.finish-icon{width:36px;height:36px}.finish-caption{font-size:12px}}
+.finish-save{border:1px solid #5c8996;border-radius:18px;background:var(--panel);padding:18px;margin:22px 0}
+.finish-save p{margin:0;font-size:17px;color:#d4e3f4}
+.finish-save button{margin-top:14px}
+.finish-save button[hidden]{display:none}
+.finish-save[data-state=saved]{border-color:var(--accent);background:#193b40}
+.finish-save[data-state=offline],.finish-save[data-state=accessError]{border-color:#d8b78b}

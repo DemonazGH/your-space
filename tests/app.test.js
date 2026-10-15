@@ -4,18 +4,25 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {block} from '../questions.js';
 
-function app(){
+function app({cloudMode=true}={}){
  const elements=new Map(),memory=new Map(),queued=[];
- let retries=0;
- const element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',disabled:false,focus(){},setAttribute(){},append(){}});return elements.get(id);};
+ let retries=0,syncCallback,lastQueued='';
+ const element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',disabled:false,hidden:false,dataset:{},focus(){},setAttribute(){},append(){}});return elements.get(id);};
  const languages=['ru','en'].map(lang=>({...element(lang),dataset:{lang}}));
  const inputs=['unknown','private','other'].map(value=>({value,checked:false}));
  const edits=block.questions.map((q,index)=>({dataset:{index:String(index)}}));
- const document={documentElement:{},querySelector:element,querySelectorAll:s=>s==='[data-lang]'?languages:s==='[name=answer]'?inputs:s==='[name=answer]:checked'?inputs.filter(x=>x.checked):s==='.edit'?edits:[],createElement:()=>element('created')};
- const context={document,block,cloudEnabled:true,testMode:true,storageKey:'test-key',queue:s=>queued.push(JSON.parse(JSON.stringify(s))),subscribe:fn=>fn('idle'),retrySave(){retries++;},cancel(){},localStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)},window:{scrollTo(){}},confirm:()=>true};
+ const finishSelectors=new Set(['#finish','#finish-mark','#finish-label','#finish-save-status','#finish-save-panel','#finish-retry']);
+ const querySelector=selector=>finishSelectors.has(selector)&&!element('#app').innerHTML.includes(`id="${selector.slice(1)}"`)?null:element(selector);
+ const document={documentElement:{},querySelector,querySelectorAll:s=>s==='[data-lang]'?languages:s==='[name=answer]'?inputs:s==='[name=answer]:checked'?inputs.filter(x=>x.checked):s==='.edit'?edits:[],createElement:()=>element('created')};
+ const context={document,block,cloudEnabled:cloudMode,testMode:true,storageKey:'test-key',queue:s=>{
+  queued.push(JSON.parse(JSON.stringify(s)));
+  if(!cloudMode||!s.consent||s.cloudConsentVersion!==1||!Object.keys(s.answers).length)return;
+  const content=JSON.stringify({answers:s.answers,language:s.lang,completed:s.completed===true});
+  if(content!==lastQueued){lastQueued=content;syncCallback?.('pending');}
+ },subscribe:fn=>{syncCallback=fn;fn('idle');},retrySave(){retries++;},cancel(){},localStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)},window:{scrollTo(){}},confirm:()=>true};
  vm.createContext(context);
  vm.runInContext(readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,''),context);
- return {element,languages,inputs,edits,queued,retries:()=>retries,start(){element('#consent').onchange({target:{checked:true}});element('#start').onclick();}};
+ return {element,languages,inputs,edits,queued,retries:()=>retries,querySelector,setSync:value=>syncCallback(value),start(){element('#consent').onchange({target:{checked:true}});element('#start').onclick();}};
 }
 
 test('Autosave keeps a complete draft unfinished until explicit finish, and editing reopens it',()=>{
@@ -39,7 +46,7 @@ test('Autosave keeps a complete draft unfinished until explicit finish, and edit
  assert.equal(a.queued.length,count);
  a.languages[1].onclick();
  assert.equal(a.queued.at(-1).completed,true);
- assert.match(a.element('#app').innerHTML,/save status is shown/);
+ assert.match(a.element('#app').innerHTML,/before closing this page/);
  a.element('#review').onclick();a.edits[0].onclick();
  a.element('#note').oninput({target:{value:''}});
  assert.equal(a.queued.at(-1).completed,false);
@@ -75,4 +82,60 @@ test('Private, unknown, and deliberate skip allow completion without free text',
  assert.equal(a.queued.at(-1).completed,true);
  assert.deepEqual(a.queued.at(-1).answers[block.questions[0].id].values,['private']);
  assert.deepEqual(a.queued.at(-1).answers[block.questions[1].id].values,['unknown']);
+});
+
+test('Finish shows waiting or retry until remote acknowledgement, then permits closing',()=>{
+ const a=app();a.start();
+ for(let i=0;i<block.questions.length;i++)a.element('#skip').onclick();
+ a.element('#finish').onclick();
+ assert.equal(a.queued.at(-1).completed,true);
+ assert.match(a.element('#heading').textContent,/Сохраняем/);
+ assert.notEqual(a.element('#finish-mark').textContent,'✓');
+ assert.match(a.element('#finish-save-status').textContent,/Дождись подтверждения/);
+ assert.equal(a.element('#finish-retry').hidden,true);
+ a.setSync('offline');
+ assert.match(a.element('#finish-save-status').textContent,/пока не отправлены/);
+ assert.equal(a.element('#finish-retry').hidden,false);
+ a.element('#finish-retry').onclick();assert.equal(a.retries(),2);
+ a.languages[1].onclick();
+ assert.match(a.element('#finish-save-status').textContent,/still being sent/);
+ a.setSync('offline');assert.match(a.element('#finish-save-status').textContent,/have not been sent/);
+ a.setSync('saving');
+ assert.match(a.element('#heading').textContent,/Saving/);
+ assert.equal(a.element('#finish-retry').hidden,true);
+ a.setSync('saved');
+ assert.match(a.element('#finish-save-status').textContent,/Answers saved for Dzmitry/);
+ assert.match(a.element('#finish-save-status').textContent,/close this page now/);
+ assert.equal(a.element('#finish-mark').textContent,'✓');
+ assert.equal(a.element('#finish-label').textContent,'Set complete');
+ a.setSync('accessError');
+ assert.match(a.element('#finish-save-status').textContent,/could not be saved online/);
+ assert.notEqual(a.element('#finish-mark').textContent,'✓');
+});
+
+test('The local demo does not claim remote saving or render the cloud finish panel',()=>{
+ const a=app({cloudMode:false});a.start();
+ for(let i=0;i<block.questions.length;i++)a.element('#skip').onclick();
+ a.element('#finish').onclick();
+ assert.doesNotMatch(a.element('#app').innerHTML,/id="finish-save-panel"/);
+ assert.match(a.element('#app').innerHTML,/Автоматически ничего не отправлено/);
+});
+
+test('Synchronous pending notification during finish tolerates the still-visible question or review DOM',()=>{
+ for(const fromReview of [false,true]){
+  const a=app();a.start();
+  for(let i=0;i<block.questions.length;i++){
+   a.element('#note').oninput({target:{value:`answer ${i}`}});
+   if(i<block.questions.length-1||fromReview)a.element('#next').onclick();
+  }
+  assert.equal(a.querySelector('#finish-mark'),null);
+  assert.equal(a.querySelector('#finish-save-panel'),null);
+  assert.doesNotThrow(()=>a.element('#finish').onclick());
+  assert.equal(a.queued.at(-1).completed,true);
+  assert.equal(a.queued.at(-1).screen,'done');
+  assert.ok(a.querySelector('#finish-save-panel'));
+  assert.match(a.element('#finish-save-status').textContent,/Дождись подтверждения/);
+  assert.equal(a.retries(),1);
+  a.setSync('saved');assert.match(a.element('#finish-save-status').textContent,/страницу можно закрыть/);
+ }
 });
