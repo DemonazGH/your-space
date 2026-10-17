@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker,{validate,tokenHash} from '../worker/index.js';
-import {block} from '../questions.js';
+import {block,blocks} from '../questions.js';
 const sample=()=>({schemaVersion:1,blockId:'first-steps-v1',consent:true,language:'ru',sessionId:'11111111-1111-4111-8111-111111111111',revision:1,completed:false,answers:{purpose:{values:['try'],text:'Пример',skipped:false}}});
 const schoolSample=()=>({...sample(),blockId:'school-task-motivation-v1',completed:true,answers:{
  school_subject:{values:['english'],text:'',skipped:false},
@@ -15,6 +15,12 @@ const claritySample=()=>({...sample(),blockId:'task-clarity-v1',completed:true,a
  clarity_source:{values:['task_text'],text:'',skipped:false},
  clarity_check:{values:['no_check'],text:'',skipped:false}
 }});
+const askingSample=()=>({...sample(),blockId:'working-it-out-or-asking-v1',completed:true,answers:{
+ asking_example:{values:['school'],text:'',skipped:false},
+ asking_first:{values:['try'],text:'',skipped:false},
+ asking_factor:{values:['try'],text:'',skipped:false},
+ asking_outcome:{values:['not_needed'],text:'',skipped:false}
+}});
 
 test('Published block 19 completion still validates without changing its saved answers',()=>{
  const data=schoolSample(),saved=validate(data);assert.equal(saved.blockId,'school-task-motivation-v1');assert.equal(saved.blockVersion,1);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,data.answers);
@@ -25,13 +31,32 @@ test('Block 20 clarity choices validate independently and cannot be mixed with b
  assert.throws(()=>validate({...clarity,blockId:'school-task-motivation-v1'}),/Invalid answer/);
  assert.throws(()=>validate({...schoolSample(),blockId:'task-clarity-v1'}),/Invalid answer/);
  assert.throws(()=>validate({...clarity,answers:{...clarity.answers,school_start_moment:schoolSample().answers.school_start_moment}}),/Invalid answer/);
- for(const question of block.questions){
+ for(const question of blocks.find(b=>b.id==='task-clarity-v1').questions){
   for(const [choice] of question.options){
    const data=claritySample();data.answers[question.id].values=[choice];assert.deepEqual(validate(data).answers,data.answers);
   }
  }
  const invalid=claritySample();invalid.answers.clarity_meaning.values=['result','method'];assert.throws(()=>validate(invalid),/Invalid choice/);
  invalid.answers.clarity_meaning.values=['not_a_clarity_choice'];assert.throws(()=>validate(invalid),/Invalid choice/);
+});
+
+test('Published block 20 remains complete and separate from the active block 21',()=>{
+ const clarity=claritySample(),saved=validate(clarity);assert.equal(saved.blockId,'task-clarity-v1');assert.equal(saved.blockVersion,1);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,clarity.answers);
+ assert.throws(()=>validate({...clarity,blockId:'working-it-out-or-asking-v1'}),/Invalid answer/);
+ assert.throws(()=>validate({...askingSample(),blockId:'task-clarity-v1'}),/Invalid answer/);
+ const mixed=askingSample();mixed.answers.clarity_meaning=clarity.answers.clarity_meaning;assert.throws(()=>validate(mixed),/Invalid answer/);
+});
+
+test('Block 21 accepts every single choice, including no example and no need to ask',()=>{
+ const asking=askingSample();assert.deepEqual(validate(asking).answers,asking.answers);
+ for(const question of block.questions){
+  for(const [choice] of question.options){
+   const data=askingSample();data.answers[question.id].values=[choice];assert.deepEqual(validate(data).answers,data.answers);
+  }
+ }
+ const invalid=askingSample();invalid.answers.asking_factor.values=['try','person'];assert.throws(()=>validate(invalid),/Invalid choice/);
+ invalid.answers.asking_factor.values=['not_an_asking_choice'];assert.throws(()=>validate(invalid),/Invalid choice/);
+ const noExample=askingSample();for(const answer of Object.values(noExample.answers))answer.values=['no_example'];assert.equal(validate(noExample).completed,true);
 });
 test('Sixth block accepts practical experience and keeps older schemas separate',()=>{const data={...sample(),blockId:'hands-on-and-asking-v1',answers:{practical_task:{values:['settings'],text:'',skipped:false},asking_recently:{values:['not_asked'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'hands-on-and-asking-v1');assert.throws(()=>validate({...sample(),blockId:'hands-on-and-asking-v1'}));});
 test('Fifth block validates independently from earlier answers',()=>{const data={...sample(),blockId:'follow-up-examples-v1',answers:{tech_interest:{values:['devices'],text:'',skipped:false},repeat_result:{values:['forgot'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'follow-up-examples-v1');assert.throws(()=>validate({...sample(),blockId:'follow-up-examples-v1'}));});
