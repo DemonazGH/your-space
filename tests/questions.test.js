@@ -7,7 +7,7 @@ import {block as activeBlock,blocks} from '../questions.js';
 test('Second block has four bilingual questions and a distinct identity',()=>{assert.notEqual(second.id,block.id);assert.equal(second.questions.length,4);assert.equal(new Set(second.questions.map(q=>q.id)).size,4);for(const q of second.questions){assert.equal(q.title.length,2);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>x.trim()));}}});
 test('Stable unique question IDs and equivalent bilingual choices',()=>{assert.equal(block.questions.length,6);assert.equal(new Set(block.questions.map(q=>q.id)).size,6);for(const q of block.questions){assert.equal(q.title.length,2);assert(q.title.every(x=>typeof x==='string'&&x.trim()));assert.equal(new Set(q.options.map(o=>o[0])).size,q.options.length);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>typeof x==='string'&&x.trim()));assert(!['other','unknown','private'].includes(o[0]));}}});
 
-// Fingerprints of answer schemas from the published 20-block catalogue. Labels
+// Fingerprints of answer schemas from the published 21-block catalogue. Labels
 // may be improved, but saved question IDs, choice IDs, types and versions must stay valid.
 const historicalSchemas=[
  ['first-steps-v1','f0ca255be1cba1838ae6a761270128b94b878cea9e3b445a7383fb4c237dec56'],
@@ -29,17 +29,18 @@ const historicalSchemas=[
  ['learning-outside-games-v1','528e033c3eb1bb53a9adb21ae4116ccd6c694c4daca5fd7380749e7abae942c0'],
  ['learning-away-from-screens-v1','d19de19b6160dc52a66d195c8986bb0de8a25b7bd32bbd6795c16df85fb57c30'],
  ['school-task-motivation-v1','6feb3bab17fe36943dfe7f39b7f5f58f2367e7fd41206cc6cc8e0d331176b908'],
- ['task-clarity-v1','eac852a994eceb9748d46ddc822a5523a1e95042d22ca0365ea7291917509fb6']
+ ['task-clarity-v1','eac852a994eceb9748d46ddc822a5523a1e95042d22ca0365ea7291917509fb6'],
+ ['working-it-out-or-asking-v1','9c676a7a1298ac110268aef744f1d68ebf6eb2c6b39b2ead186fc4c37eab30cd']
 ];
 function schemaDigest(definition){
  const schema={id:definition.id,version:definition.version,requiresFinish:definition.requiresFinish===true,questions:definition.questions.map(q=>({id:q.id,type:q.type,options:q.options.map(o=>o[0])}))};
  return createHash('sha256').update(JSON.stringify(schema)).digest('hex');
 }
 
-test('The 21-block catalogue preserves all 20 published answer schemas and unique identities',()=>{
- assert.equal(blocks.length,21);
- assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'working-it-out-or-asking-v1']);
- assert.equal(new Set(blocks.map(b=>b.id)).size,21);assert.equal(blocks.at(-1),activeBlock);
+test('The 22-block catalogue preserves all 21 published answer schemas and unique identities',()=>{
+ assert.equal(blocks.length,22);
+ assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'own-priorities-v1']);
+ assert.equal(new Set(blocks.map(b=>b.id)).size,22);assert.equal(blocks.at(-1),activeBlock);
  for(const [id,digest] of historicalSchemas){assert.equal(schemaDigest(blocks.find(b=>b.id===id)),digest,`Published answer schema changed: ${id}`);}
 });
 
@@ -68,12 +69,23 @@ test('Block 20 asks four separate clarity questions and preserves explicit finis
 });
 
 test('Block 21 distinguishes first action, its reason and whether asking actually happened',()=>{
- assert.equal(activeBlock.id,'working-it-out-or-asking-v1');assert.equal(activeBlock.version,1);assert.equal(activeBlock.requiresFinish,true);
- assert.deepEqual(activeBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
+ const askingBlock=blocks.find(b=>b.id==='working-it-out-or-asking-v1');
+ assert.ok(askingBlock);assert.equal(askingBlock.version,1);assert.equal(askingBlock.requiresFinish,true);
+ assert.deepEqual(askingBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
   ['asking_example','single',['school','home','digital','outside','no_example','forgot']],
   ['asking_first','single',['try','information','person','later','not_started','no_example','forgot']],
   ['asking_factor','single',['try','information','person','unavailable','uncomfortable','several','no_example','forgot']],
   ['asking_outcome','single',['helpful','unclear','not_yet','decided_no','not_needed','no_example','forgot']]
+ ]);
+});
+
+test('Block 22 offers personal priorities without requiring a change or a further task',()=>{
+ assert.equal(activeBlock.id,'own-priorities-v1');assert.equal(activeBlock.version,1);assert.equal(activeBlock.requiresFinish,true);
+ assert.deepEqual(activeBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
+  ['priority_topic','single',['interests','future','daily','people','rest','no_change','undecided']],
+  ['priority_change','single',['understand','options','learn','easier','choice','no_change','no_topic']],
+  ['priority_reason','single',['interest','useful','comfort','choice','future','several','not_chosen']],
+  ['priority_next','single',['explore','details','try','think','pause','undecided']]
  ]);
 });
 
