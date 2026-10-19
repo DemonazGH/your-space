@@ -27,6 +27,10 @@ const prioritiesSample=()=>({...sample(),blockId:'own-priorities-v1',completed:t
  priority_reason:{values:['interest'],text:'',skipped:false},
  priority_next:{values:['explore'],text:'',skipped:false}
 }});
+const leisureSample=()=>({...sample(),blockId:'leisure-activity-choice-v1',completed:true,answers:{
+ leisure_ideas:{values:['mystery','languages'],text:'',skipped:false},
+ leisure_next:{values:['example'],text:'',skipped:false}
+}});
 
 test('Published block 19 completion still validates without changing its saved answers',()=>{
  const data=schoolSample(),saved=validate(data);assert.equal(saved.blockId,'school-task-motivation-v1');assert.equal(saved.blockVersion,1);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,data.answers);
@@ -74,7 +78,7 @@ test('Published block 21 remains unchanged and cannot be mixed with priority ans
 
 test('Block 22 accepts each priority choice and rejects multiple or unknown option IDs',()=>{
  const priorities=prioritiesSample();assert.deepEqual(validate(priorities).answers,priorities.answers);
- for(const question of block.questions){
+ for(const question of blocks.find(b=>b.id==='own-priorities-v1').questions){
   for(const [choice] of question.options){
    const data=prioritiesSample();data.answers[question.id].values=[choice];assert.deepEqual(validate(data).answers,data.answers);
   }
@@ -90,6 +94,30 @@ test('Choosing no change, a pause, or uncertainty can explicitly finish block 22
  }
  const unknown=prioritiesSample();for(const answer of Object.values(unknown.answers))answer.values=['unknown'];assert.equal(validate(unknown).completed,true);
  const undecided=prioritiesSample();undecided.answers.priority_topic.values=['undecided'];undecided.answers.priority_change.values=['no_topic'];undecided.answers.priority_reason.values=['not_chosen'];undecided.answers.priority_next.values=['undecided'];assert.equal(validate(undecided).completed,true);
+});
+
+test('Block 23 and the published block 22 keep separate answer schemas',()=>{
+ const priorities=prioritiesSample();assert.equal(validate(priorities).completed,true);assert.deepEqual(validate(priorities).answers,priorities.answers);
+ const leisure=leisureSample();assert.equal(validate(leisure).blockVersion,1);assert.deepEqual(validate(leisure).answers,leisure.answers);
+ assert.throws(()=>validate({...leisure,blockId:'own-priorities-v1'}),/Invalid answer/);
+ assert.throws(()=>validate({...priorities,blockId:'leisure-activity-choice-v1'}),/Invalid answer/);
+ const mixed=leisureSample();mixed.answers.priority_next=priorities.answers.priority_next;assert.throws(()=>validate(mixed),/Invalid answer/);
+});
+
+test('Block 23 accepts combined interests or none alone, while every exclusive choice rejects combinations',()=>{
+ const schema=blocks.find(b=>b.id==='leisure-activity-choice-v1'),ideas=schema.questions[0];
+ const combined=leisureSample();combined.answers.leisure_ideas.values=['mystery','languages','story','echo','offscreen','other'];assert.deepEqual(validate(combined).answers,combined.answers);
+ for(const exclusive of ['none','unknown','private']){
+  const alone=leisureSample();alone.answers.leisure_ideas={values:[exclusive],text:'An optional comment',skipped:false};assert.deepEqual(validate(alone).answers,alone.answers);
+  for(const other of [...ideas.options.map(option=>option[0]),'other','unknown','private'].filter(value=>value!==exclusive)){
+   const contradictory=leisureSample();contradictory.answers.leisure_ideas.values=[exclusive,other];assert.throws(()=>validate(contradictory),/Exclusive choice/);
+  }
+ }
+ for(const question of schema.questions){
+  for(const [choice] of question.options){const data=leisureSample();data.answers[question.id].values=[choice];assert.deepEqual(validate(data).answers,data.answers);}
+ }
+ const multipleNext=leisureSample();multipleNext.answers.leisure_next.values=['example','pause'];assert.throws(()=>validate(multipleNext),/Invalid choice/);
+ const incomplete=leisureSample();delete incomplete.answers.leisure_next;assert.throws(()=>validate(incomplete),/Incomplete finish/);assert.equal(validate({...incomplete,completed:false}).completed,false);
 });
 test('Sixth block accepts practical experience and keeps older schemas separate',()=>{const data={...sample(),blockId:'hands-on-and-asking-v1',answers:{practical_task:{values:['settings'],text:'',skipped:false},asking_recently:{values:['not_asked'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'hands-on-and-asking-v1');assert.throws(()=>validate({...sample(),blockId:'hands-on-and-asking-v1'}));});
 test('Fifth block validates independently from earlier answers',()=>{const data={...sample(),blockId:'follow-up-examples-v1',answers:{tech_interest:{values:['devices'],text:'',skipped:false},repeat_result:{values:['forgot'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'follow-up-examples-v1');assert.throws(()=>validate({...sample(),blockId:'follow-up-examples-v1'}));});

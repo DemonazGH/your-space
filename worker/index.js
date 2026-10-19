@@ -16,8 +16,9 @@ export function validate(x) {
     const q=block.questions.find(q=>q.id===id);
     if(!q||!a||!Array.isArray(a.values)||typeof a.text!=='string'||a.text.length>1200||typeof a.skipped!=='boolean')throw Error('Invalid answer');
     const valid=new Set([...q.options.map(o=>o[0]),'other','unknown','private']);
+    const exclusive=new Set(['unknown','private',...(q.exclusiveOptions??[])]);
     if(a.values.some(v=>!valid.has(v))||new Set(a.values).size!==a.values.length||a.values.length>(q.type==='multi'?valid.size:1))throw Error('Invalid choice');
-    if(a.values.length>1&&a.values.some(v=>['unknown','private'].includes(v)))throw Error('Exclusive choice');
+    if(a.values.length>1&&a.values.some(v=>exclusive.has(v)))throw Error('Exclusive choice');
     if(a.skipped&&(a.values.length||a.text.trim()))throw Error('Invalid skip');
     answers[id]={values:a.values,text:a.text,skipped:a.skipped};
   }

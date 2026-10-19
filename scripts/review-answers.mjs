@@ -33,9 +33,10 @@ export function parseParticipantRecord(data,path,catalog=blocks) {
   if(!question||!answer||!Array.isArray(answer.values)||typeof answer.text!=='string'||
      answer.text.length>1200||typeof answer.skipped!=='boolean')throw Error('invalid_answer');
   const choices=new Set([...question.options.map(option=>option[0]),...Object.keys(globalOptions)]);
+  const exclusive=new Set(['unknown','private',...(question.exclusiveOptions??[])]);
   if(answer.values.some(value=>!choices.has(value))||new Set(answer.values).size!==answer.values.length||
      answer.values.length>(question.type==='multi'?choices.size:1)||
-     (answer.values.length>1&&answer.values.some(value=>['unknown','private'].includes(value)))||
+     (answer.values.length>1&&answer.values.some(value=>exclusive.has(value)))||
      (answer.skipped&&(answer.values.length||answer.text.trim())))throw Error('invalid_choices');
  }
  if(schema.requiresFinish&&data.completed&&!schema.questions.every(question=>{
