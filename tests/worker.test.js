@@ -31,6 +31,10 @@ const leisureSample=()=>({...sample(),blockId:'leisure-activity-choice-v1',compl
  leisure_ideas:{values:['mystery','languages'],text:'',skipped:false},
  leisure_next:{values:['example'],text:'',skipped:false}
 }});
+const storySample=()=>({...sample(),blockId:'detective-story-choice-v1',completed:true,answers:{
+ story_path:{values:['game'],text:'',skipped:false},
+ story_impression:{values:['curious'],text:'',skipped:false}
+}});
 
 test('Published block 19 completion still validates without changing its saved answers',()=>{
  const data=schoolSample(),saved=validate(data);assert.equal(saved.blockId,'school-task-motivation-v1');assert.equal(saved.blockVersion,1);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,data.answers);
@@ -118,6 +122,31 @@ test('Block 23 accepts combined interests or none alone, while every exclusive c
  }
  const multipleNext=leisureSample();multipleNext.answers.leisure_next.values=['example','pause'];assert.throws(()=>validate(multipleNext),/Invalid choice/);
  const incomplete=leisureSample();delete incomplete.answers.leisure_next;assert.throws(()=>validate(incomplete),/Incomplete finish/);assert.equal(validate({...incomplete,completed:false}).completed,false);
+});
+
+test('Block 24 preserves block 23 responses and isolates story choices from leisure choices',()=>{
+ const leisure=leisureSample(),historical=validate(leisure);assert.equal(historical.blockId,'leisure-activity-choice-v1');assert.equal(historical.completed,true);assert.deepEqual(historical.answers,leisure.answers);
+ const story=storySample(),saved=validate(story);assert.equal(saved.blockVersion,1);assert.deepEqual(saved.answers,story.answers);
+ assert.throws(()=>validate({...story,blockId:'leisure-activity-choice-v1'}),/Invalid answer/);
+ assert.throws(()=>validate({...leisure,blockId:'detective-story-choice-v1'}),/Invalid answer/);
+ const mixed=storySample();mixed.answers.leisure_next=leisure.answers.leisure_next;assert.throws(()=>validate(mixed),/Invalid answer/);
+});
+
+test('Every story continuation and impression is accepted without writing or solving anything',()=>{
+ const schema=blocks.find(b=>b.id==='detective-story-choice-v1');
+ for(const [path] of schema.questions[0].options){
+  for(const [impression] of schema.questions[1].options){
+   const data=storySample();data.answers.story_path.values=[path];data.answers.story_impression.values=[impression];assert.deepEqual(validate(data).answers,data.answers);
+  }
+ }
+ for(const refusal of ['unknown','private']){
+  const data=storySample();for(const answer of Object.values(data.answers))answer.values=[refusal];assert.equal(validate(data).completed,true);
+ }
+ const skipped=storySample();for(const answer of Object.values(skipped.answers)){answer.values=[];answer.skipped=true;}assert.equal(validate(skipped).completed,true);
+ const notRead=storySample();notRead.answers.story_path={values:[],text:'',skipped:true};notRead.answers.story_impression.values=['not_read'];assert.equal(validate(notRead).completed,true);
+ const invalid=storySample();invalid.answers.story_path.values=['game','room_history'];assert.throws(()=>validate(invalid),/Invalid choice/);
+ invalid.answers.story_path.values=['mystery'];assert.throws(()=>validate(invalid),/Invalid choice/);
+ const incomplete=storySample();delete incomplete.answers.story_impression;assert.throws(()=>validate(incomplete),/Incomplete finish/);assert.equal(validate({...incomplete,completed:false}).completed,false);
 });
 test('Sixth block accepts practical experience and keeps older schemas separate',()=>{const data={...sample(),blockId:'hands-on-and-asking-v1',answers:{practical_task:{values:['settings'],text:'',skipped:false},asking_recently:{values:['not_asked'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'hands-on-and-asking-v1');assert.throws(()=>validate({...sample(),blockId:'hands-on-and-asking-v1'}));});
 test('Fifth block validates independently from earlier answers',()=>{const data={...sample(),blockId:'follow-up-examples-v1',answers:{tech_interest:{values:['devices'],text:'',skipped:false},repeat_result:{values:['forgot'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'follow-up-examples-v1');assert.throws(()=>validate({...sample(),blockId:'follow-up-examples-v1'}));});

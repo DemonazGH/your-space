@@ -18,3 +18,8 @@
 .finish-save button[hidden]{display:none}
 .finish-save[data-state=saved]{border-color:var(--accent);background:#193b40}
 .finish-save[data-state=offline],.finish-save[data-state=accessError]{border-color:#d8b78b}
+.passage-card{margin:24px 0;padding:22px;border:1px solid var(--line);border-radius:18px;background:var(--panel);overflow-wrap:anywhere}
+.passage-card h2{margin:0 0 16px;color:var(--accent);font-size:20px;line-height:1.4;font-weight:650}
+.passage-card p{margin:0 0 16px;color:#e4ebf7;font-size:17px;line-height:1.75}
+.passage-card p:last-child{margin-bottom:0}
+@media(max-width:480px){.passage-card{padding:18px}.passage-card h2{font-size:19px}}

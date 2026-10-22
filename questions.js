@@ -262,7 +262,7 @@ export const twentySecondBlock = {
  {id:'priority_next',type:'single',title:['Что ты предпочёл бы дальше в путеводителе?','What would you prefer next in the guide?'],hint:['Это твой выбор о том, как продолжить. Можно выбрать паузу; выполнять что-то сейчас не требуется.','This is your choice about how to continue. You can choose a break. You do not have to do anything now.'],options:[['explore','Посмотреть несколько разных тем или занятий','See several different topics or activities'],['details','Подробнее узнать о выбранной мной теме','Find out more about the topic I chose'],['try','По желанию попробовать короткое занятие','Have the option to try a short activity'],['think','Пока просто подумать, без нового задания','Just think for now, without a new task'],['pause','Сделать паузу в вопросах','Take a break from the questions'],['undecided','Пока не могу выбрать, как продолжить','I cannot choose how to continue yet']]}
  ]
 };
-export const block = {
+export const twentyThirdBlock = {
  id:'leisure-activity-choice-v1',version:1,requiresFinish:true,
  label:['Блок 23 · Занятия на выбор','Set 23 · Activities to choose from'],
  title:['Что тебе<br>интересно?','What looks<br>interesting to you?'],
@@ -272,4 +272,28 @@ export const block = {
  {id:'leisure_next',type:'single',title:['Что тебе удобнее получить дальше?','What would you prefer to see next?'],hint:['Можно попросить пример или другой список, решить позже или остановиться. Пример тоже ни к чему не обязывает.','You can ask for an example or a different list, decide later or stop here. An example does not mean you have to do the activity.'],options:[['example','Короткий пример одного из этих занятий','A short example of one of these activities'],['more_ideas','Ещё несколько других идей','Some different activity ideas'],['later','Пока оставить этот список, решу позже','Keep this list for now; I will decide later'],['pause','Сейчас не хочу продолжения','I do not want anything more for now']]}
  ]
 };
-export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,block];
+export const block = {
+ id:'detective-story-choice-v1',version:1,requiresFinish:true,
+ label:['Блок 24 · Фотография в книге','Set 24 · The photo in the book'],
+ title:['Одна история —<br>разные продолжения','One story,<br>three paths'],
+ intro:['Короткая история и три варианта продолжения. Можно просто прочитать, выбрать интересную версию или оставить всё без выбора. Разгадывать историю, объяснять выбор и писать свой текст не требуется. Здесь нет правильного ответа и баллов.','A short story with three ways to continue. You can just read, choose a version that interests you or leave it without choosing. You do not have to solve the mystery, explain your choice or write your own text. There is no right answer and there are no scores.'],
+ questions:[
+ {id:'story_path',type:'single',title:['Какое продолжение тебе интереснее?','Which version would you like to read next?'],passage:{title:['Фотография в книге','The photo in the book'],paragraphs:[
+ ['После уроков Мира помогала в школьной библиотеке. В книге о путешествиях она нашла фотографию того же читального зала. На обороте было написано: «Здесь что-то изменилось».','After school, Mira was helping in the school library. Inside a travel book, she found a photo of that room. On the back it said: “Something here has changed.”'],
+ ['На фотографии часы показывали 15:10, а на доске стояла вчерашняя дата. Маленький стол стоял у окна. Теперь он был возле выставки книг, а на его месте появилась лампа.','The clock in the photo showed 3:10, and yesterday’s date was on the board. A table stood by the window. Now it was beside a book display, and a lamp stood in its place.'],
+ ['Под столом лежал синий бумажный кружок. Такие кружки использовали на школьном квесте на прошлой неделе. Но он мог остаться и просто после уборки. Рядом Мира заметила конверт с надписью «Для выставки».','Under the table lay a blue paper circle. Similar circles had been used in a school puzzle game last week. It might also have been left after cleaning. Nearby was an envelope marked “For the display.”']
+ ]},hint:['Это разные версии истории. Правильного ответа нет. Можно только прочитать и не выбирать; для этого есть отдельный вариант или кнопка «Пропустить».','These are different versions of the story. There is no right answer. You can just read without choosing. There is an option for this, or you can press “Skip”.'],options:[
+ ['game','Квест продолжается. В конверте оказывается план нового квеста. Снимок и синий кружок — первые подсказки, а следующая связана с книжной выставкой.','The game continues. The envelope holds a plan for a new puzzle game. The photo and blue circle are its first clues. The next one connects to the book display.'],
+ ['room_history','История комнаты. Библиотекарь приносит ещё несколько снимков. Это выставка о том, как менялась библиотека. На самой старой фотографии Мира замечает неожиданную деталь.','The story of the room. The librarian brings more photos. The display shows how the library has changed. Mira notices an unexpected detail in the oldest photo.'],
+ ['shared_story','Рассказ по очереди. Оказывается, снимок — начало рассказа, который ученики продолжают по очереди. На следующей странице описан тот же зал, но уже завтрашним утром.','A story written together. The photo is the opening of a story that students take turns writing. The next page describes the same room, but tomorrow morning.'],
+ ['no_choice','Просто прочитал, продолжение пока не выбираю','I just read it; I am not choosing what comes next']
+ ]},
+ {id:'story_impression',type:'single',title:['Какое впечатление осталось от этого примера?','How did you feel about this example?'],hint:['Это только отзыв об истории. Можно ответить «Не знаю», пропустить вопрос или добавить что-то своими словами — необязательно.','This is only your reaction to the story. You can choose “I do not know”, skip the question or add your own words if you want to.'],options:[
+ ['curious','Интересно узнать, что будет дальше','I would like to find out what happens next'],
+ ['neutral','Нормально, но особого интереса не вызвало','It was OK, but I was not very interested'],
+ ['not_for_me','Мне не понравился этот пример','I did not like this example'],
+ ['not_read','Пока не читал или не дочитал','I have not read it yet or have not finished']
+ ]}
+ ]
+};
+export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,block];
