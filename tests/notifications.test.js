@@ -6,9 +6,17 @@ import worker from '../worker/index.js';
 test('Minsk calendar date does not follow Warsaw daylight saving',()=>{assert.equal(minskDate(new Date('2026-12-01T21:30:00Z')),'2026-12-02');});
 test('Notifications skip opt-out and completed blocks; deduplicate publication and evening',async()=>{
  const original=globalThis.fetch;let enabled=false,done=false,sends=0,published=true;const records=new Map();
- const env={DATA_REPO:'owner/private',GITHUB_TOKEN:'fake',TELEGRAM_BOT_TOKEN:'fake',TELEGRAM_PARTICIPANT_ACCESS:'private-link'};
+ const env={DATA_REPO:'owner/private',GITHUB_TOKEN:'fake',TELEGRAM_BOT_TOKEN:'fake',TELEGRAM_PARTICIPANT_ACCESS:'b'.repeat(64),TELEGRAM_TEST_ACCESS:'a'.repeat(64)};
  globalThis.fetch=async(url,options={})=>{
-  if(url.includes('api.telegram.org')){sends++;const body=JSON.parse(options.body);assert.equal(body.chat_id,123);assert.match(body.reply_markup.inline_keyboard[0][0].url,/mode=participant/);return Response.json({ok:true,result:{message_id:sends}});}
+  if(url.includes('api.telegram.org')){
+   sends++;const body=JSON.parse(options.body);assert.equal(body.chat_id,123);assert.doesNotMatch(body.text,/Четыре/);
+   const link=new URL(body.reply_markup.inline_keyboard[0][0].url),fragment=new URLSearchParams(link.hash.slice(1));
+   assert.equal(link.origin,'https://demonazgh.github.io');assert.equal(link.pathname,'/your-space/');
+   assert.equal(link.searchParams.get('block'),block.id);assert.deepEqual([...link.searchParams.keys()],['block']);
+   assert.equal(link.searchParams.has('access'),false);assert.equal(link.search.includes(env.TELEGRAM_PARTICIPANT_ACCESS),false);
+   assert.equal(fragment.get('access'),env.TELEGRAM_PARTICIPANT_ACCESS);assert.equal(fragment.get('mode'),'participant');assert.equal(link.href.includes(env.TELEGRAM_TEST_ACCESS),false);
+   return Response.json({ok:true,result:{message_id:sends}});
+  }
   if(url.includes('github.io'))return new Response(`export const block = {id:'${published?block.id:'old'}'}`);
   if(url.includes('/git/trees/'))return Response.json({tree:done?[{type:'blob',path:`participant/id/${block.id}.json`}]:[]});
   if(url.includes('/contents/participant/'))return Response.json({content:Buffer.from(JSON.stringify({blockId:block.id,completed:true})).toString('base64')});
@@ -22,7 +30,9 @@ test('Notifications skip opt-out and completed blocks; deduplicate publication a
   enabled=true;done=true;assert.equal((await notifyBlock(env)).reason,'completed');assert.equal(sends,0);
   done=false;published=false;await assert.rejects(()=>notifyBlock(env),/publication_not_ready/);assert.equal(sends,0);published=true;
   assert.equal((await notifyBlock(env)).sent,true);assert.equal((await notifyBlock(env)).reason,'already_sent');assert.equal(sends,1);
+  assert.equal(records.get(`deliveries/${block.id}-publication.json`).status,'sent');
   const date=new Date('2026-10-10T18:00:00Z');assert.equal((await notifyBlock(env,'evening',date)).sent,true);assert.equal((await notifyBlock(env,'evening',date)).reason,'already_sent');assert.equal(sends,2);
+  assert.equal(records.get(`deliveries/${block.id}-${minskDate(date)}.json`).status,'sent');assert.equal(records.size,2);
   done=true;assert.equal((await notifyBlock(env,'evening',new Date('2026-10-11T18:00:00Z'))).reason,'completed');assert.equal(sends,2);
  }finally{globalThis.fetch=original;}
 });

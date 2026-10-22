@@ -1,6 +1,6 @@
 # Artsiom’s Personal Guide / Персональный путеводитель Артёма
 
-Mobile-first bilingual guide for voluntary self-reflection. Six questions, optional text, skip/pause, local draft, review and JSON export. Private access links enable consent-based cloud autosave. No analytics, external fonts, public credentials or diagnostic scoring.
+Mobile-first bilingual guide for voluntary self-reflection. Short blocks, optional text, skip/pause, local draft, review and JSON export. Private access links enable consent-based cloud autosave. No analytics, external fonts, public credentials or diagnostic scoring.
 
 ## Preview
 
@@ -8,7 +8,9 @@ Run `node server.js`, open http://127.0.0.1:4173. Run `node --test tests/*.test.
 
 ## Deployment
 
-Create a GitHub repository, push the project to its main branch, and enable GitHub Pages with GitHub Actions as source. The workflow publishes only the four allowlisted public assets. Never commit participant exports or identifying information. GitHub Pages hosting is public; noindex is not access control.
+Create a GitHub repository, push the project to its main branch, and enable GitHub Pages with GitHub Actions as source. The workflow publishes only the five allowlisted public assets. Never commit participant exports or identifying information. GitHub Pages hosting is public; noindex is not access control.
+
+For each new block, update the `block` query in the Home link, stylesheet/script references in `index.html` and both imports in `app.js` to the active block ID. Keep the asset `rev` values equal; increment the revision for asset changes within the same block. Telegram guide links include the active block in the page query, while access keys stay in the fragment. These versions prevent a cached page or module from showing the previous block after publication. The release test checks the complete asset graph.
 
 ## Private autosave
 

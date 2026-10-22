@@ -56,8 +56,8 @@ export async function notifyBlock(env,kind='publication',now=new Date()){
  await state(env,key,claim);
  // Recheck opt-out immediately before sending.
  if(!(await state(env,'participant')).value?.enabled)return {sent:false,reason:'disabled'};
- const text=kind==='publication'?`Готов новый блок 🧭\n${block.label[0]}\nЧетыре коротких вопроса. Можно ответить, когда будет удобно.\nОтключить уведомления: /stop.`:`Небольшое напоминание 🧭\n${block.label[0]} ещё можно пройти. Если сейчас неудобно, вернись позже.\nОтключить уведомления: /stop.`;
- const result=await telegram(env,'sendMessage',{chat_id:participant.chatId,text,link_preview_options:{is_disabled:true},reply_markup:{inline_keyboard:[[{text:'Открыть блок',url:`https://demonazgh.github.io/your-space/#access=${env.TELEGRAM_PARTICIPANT_ACCESS}&mode=participant`}]]}});
+ const text=kind==='publication'?`Готов новый блок 🧭\n${block.label[0]}\nМожно ответить, когда будет удобно.\nОтключить уведомления: /stop.`:`Небольшое напоминание 🧭\n${block.label[0]} ещё можно пройти. Если сейчас неудобно, вернись позже.\nОтключить уведомления: /stop.`;
+ const result=await telegram(env,'sendMessage',{chat_id:participant.chatId,text,link_preview_options:{is_disabled:true},reply_markup:{inline_keyboard:[[{text:'Открыть блок',url:`https://demonazgh.github.io/your-space/?block=${encodeURIComponent(block.id)}#access=${env.TELEGRAM_PARTICIPANT_ACCESS}&mode=participant`}]]}});
  const current=await state(env,key);
  await state(env,key,{...claim,status:'sent',sentAt:new Date().toISOString(),messageId:result.message_id},current.sha);
  return {sent:true,blockId:block.id,messageId:result.message_id};

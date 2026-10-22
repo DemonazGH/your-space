@@ -50,7 +50,7 @@ export async function handleTelegram(request,env){
    const token=role==='admin'?env.TELEGRAM_TEST_ACCESS:env.TELEGRAM_PARTICIPANT_ACCESS;
    if(!token)throw Error('missing_access');
    text=`${block.label[0]}. Можно ответить, когда будет удобно.`;
-   markup={inline_keyboard:[[{text:'Открыть путеводитель',url:`https://demonazgh.github.io/your-space/#access=${token}&mode=${role==='admin'?'test':'participant'}`}]]};
+   markup={inline_keyboard:[[{text:'Открыть путеводитель',url:`https://demonazgh.github.io/your-space/?block=${encodeURIComponent(block.id)}#access=${token}&mode=${role==='admin'?'test':'participant'}`}]]};
   }else if(cmd==='/status')text=`Compass подключён. Роль: ${role==='admin'?'администратор':'участник'}. Уведомления: ${record.value.enabled?'включены':'отключены'}.\nНовые блоки: сообщение после публикации и ежедневно в 21:00 по Минску, пока блок не завершён. Напоминания о событиях пока не настроены.`;
   else text=`Привет! Я Compass 🧭 — бот персонального путеводителя. ${role==='admin'?'Твой аккаунт подключён как администратор.':'Ты подключён по личному приглашению.'}\n/guide — открыть путеводитель${role==='admin'?' в тестовом режиме':''}\n/status — статус\n/stop — отключить уведомления\n/resume — включить снова\nО новых блоках сообщаю после публикации и напоминаю ежедневно в 21:00 по Минску до завершения. Напоминания о событиях пока не настроены. Telegram ID и настройки сохраняются на сервере Cloudflare и в приватном хранилище Дмитрия. Ответы на анкету здесь не показываются.`;
   // Persist before replying so retried Telegram updates cannot repeat registration or commands.
