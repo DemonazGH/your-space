@@ -1,5 +1,5 @@
-import {block} from './questions.js?block=detective-story-choice-v1&rev=1';
-import {cloudEnabled,testMode,storageKey,queue,subscribe,retrySave,cancel} from './cloud.js?block=detective-story-choice-v1&rev=1';
+import {block} from './questions.js?block=phone-daily-helper-v1&rev=1';
+import {cloudEnabled,testMode,storageKey,queue,subscribe,retrySave,cancel} from './cloud.js?block=phone-daily-helper-v1&rev=1';
 const $=s=>document.querySelector(s), key=storageKey+':'+block.id;
 const words={brand:['Персональный путеводитель Артёма','Artsiom’s Personal Guide'],start:['Начать','Start'],resume:['Продолжить','Continue'],next:['Дальше','Next'],back:['Назад','Back'],skip:['Пропустить','Skip'],unknown:['Не знаю','I do not know'],other:['Другое','Something else'],private:['Не хочу отвечать','I prefer not to answer'],optional:['Можно добавить своими словами — необязательно','You can add your own words — optional'],pause:['Пауза','Pause'],saved:['Прогресс хранится только в этом браузере. Ответы пока никому не отправляются.','Progress stays in this browser only. Answers are not sent to anyone yet.'],clear:['Удалить ответы с этого устройства','Delete answers from this device'],review:['Посмотреть ответы','Review answers'],skipped:['Пропущено','Skipped'],edit:['Изменить','Edit'],storage:['Браузер не даёт сохранить прогресс. Не закрывай страницу до выгрузки ответов.','This browser cannot save progress. Keep this page open until you download your answers.']};
 let syncState='idle';

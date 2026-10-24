@@ -7,7 +7,7 @@ import {block as activeBlock,blocks} from '../questions.js';
 test('Second block has four bilingual questions and a distinct identity',()=>{assert.notEqual(second.id,block.id);assert.equal(second.questions.length,4);assert.equal(new Set(second.questions.map(q=>q.id)).size,4);for(const q of second.questions){assert.equal(q.title.length,2);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>x.trim()));}}});
 test('Stable unique question IDs and equivalent bilingual choices',()=>{assert.equal(block.questions.length,6);assert.equal(new Set(block.questions.map(q=>q.id)).size,6);for(const q of block.questions){assert.equal(q.title.length,2);assert(q.title.every(x=>typeof x==='string'&&x.trim()));assert.equal(new Set(q.options.map(o=>o[0])).size,q.options.length);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>typeof x==='string'&&x.trim()));assert(!['other','unknown','private'].includes(o[0]));}}});
 
-// Fingerprints of answer schemas from the published 23-block catalogue. Labels
+// Fingerprints of answer schemas from the published 24-block catalogue. Labels
 // may be improved, but saved question IDs, choice IDs, types and versions must stay valid.
 const historicalSchemas=[
  ['first-steps-v1','f0ca255be1cba1838ae6a761270128b94b878cea9e3b445a7383fb4c237dec56'],
@@ -32,17 +32,18 @@ const historicalSchemas=[
  ['task-clarity-v1','eac852a994eceb9748d46ddc822a5523a1e95042d22ca0365ea7291917509fb6'],
  ['working-it-out-or-asking-v1','9c676a7a1298ac110268aef744f1d68ebf6eb2c6b39b2ead186fc4c37eab30cd'],
  ['own-priorities-v1','3490aa13c218bc9c3cb755db156b7b1bd43a16b17f39957144460513c31a73a9'],
- ['leisure-activity-choice-v1','20f3fd1271bf01885bd1f7716aec290b49ad0a16badeddab875fda1e6d2c4ead']
+ ['leisure-activity-choice-v1','20f3fd1271bf01885bd1f7716aec290b49ad0a16badeddab875fda1e6d2c4ead'],
+ ['detective-story-choice-v1','ef1e741b4cad2c0fd3057d2a84d9d1a8b4c995dcce5bbb7ba9277037cb25c63c']
 ];
 function schemaDigest(definition){
  const schema={id:definition.id,version:definition.version,requiresFinish:definition.requiresFinish===true,questions:definition.questions.map(q=>({id:q.id,type:q.type,options:q.options.map(o=>o[0]),...(q.exclusiveOptions?{exclusiveOptions:q.exclusiveOptions}:{})}))};
  return createHash('sha256').update(JSON.stringify(schema)).digest('hex');
 }
 
-test('The 24-block catalogue preserves all 23 published answer schemas and unique identities',()=>{
- assert.equal(blocks.length,24);
- assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'detective-story-choice-v1']);
- assert.equal(new Set(blocks.map(b=>b.id)).size,24);assert.equal(blocks.at(-1),activeBlock);
+test('The 25-block catalogue preserves all 24 published answer schemas and unique identities',()=>{
+ assert.equal(blocks.length,25);
+ assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'phone-daily-helper-v1']);
+ assert.equal(new Set(blocks.map(b=>b.id)).size,25);assert.equal(blocks.at(-1),activeBlock);
  for(const [id,digest] of historicalSchemas){assert.equal(schemaDigest(blocks.find(b=>b.id===id)),digest,`Published answer schema changed: ${id}`);}
 });
 
@@ -103,16 +104,27 @@ test('Block 23 uses only two bilingual questions, with several interests or an e
 });
 
 test('Block 24 presents one bilingual story and two short choices without requiring a written solution',()=>{
- assert.equal(activeBlock.id,'detective-story-choice-v1');assert.equal(activeBlock.version,1);assert.equal(activeBlock.requiresFinish,true);
- assert.deepEqual(activeBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
+ const storyBlock=blocks.find(b=>b.id==='detective-story-choice-v1');
+ assert.ok(storyBlock);assert.equal(storyBlock.version,1);assert.equal(storyBlock.requiresFinish,true);
+ assert.deepEqual(storyBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
   ['story_path','single',['game','room_history','shared_story','no_choice']],
   ['story_impression','single',['curious','neutral','not_for_me','not_read']]
  ]);
- const [story,feedback]=activeBlock.questions;
+ const [story,feedback]=storyBlock.questions;
  assert.equal(story.passage.title.length,2);assert.ok(story.passage.title.every(text=>typeof text==='string'&&text.trim()));
  assert.equal(story.passage.paragraphs.length,3);
  for(const paragraph of story.passage.paragraphs){assert.equal(paragraph.length,2);assert.ok(paragraph.every(text=>typeof text==='string'&&text.trim()));}
  assert.equal(feedback.passage,undefined);
+});
+
+test('Block 25 separates current phone uses, an optional feature and preferred control in three questions',()=>{
+ assert.equal(activeBlock.id,'phone-daily-helper-v1');assert.equal(activeBlock.version,1);assert.equal(activeBlock.requiresFinish,true);
+ assert.deepEqual(activeBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
+  ['phone_current','multi',['explain','contact','save','plans','activities','none']],
+  ['phone_feature','single',['overview','reminders','lists','message_help','search','none']],
+  ['phone_control','single',['on_demand','one_button','chosen_time','example','not_needed']]
+ ]);
+ assert.deepEqual(activeBlock.questions[0].exclusiveOptions,['none']);
 });
 
 

@@ -35,6 +35,11 @@ const storySample=()=>({...sample(),blockId:'detective-story-choice-v1',complete
  story_path:{values:['game'],text:'',skipped:false},
  story_impression:{values:['curious'],text:'',skipped:false}
 }});
+const phoneSample=()=>({...sample(),blockId:'phone-daily-helper-v1',completed:true,answers:{
+ phone_current:{values:['explain','contact'],text:'',skipped:false},
+ phone_feature:{values:['overview'],text:'',skipped:false},
+ phone_control:{values:['on_demand'],text:'',skipped:false}
+}});
 
 test('Published block 19 completion still validates without changing its saved answers',()=>{
  const data=schoolSample(),saved=validate(data);assert.equal(saved.blockId,'school-task-motivation-v1');assert.equal(saved.blockVersion,1);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,data.answers);
@@ -147,6 +152,39 @@ test('Every story continuation and impression is accepted without writing or sol
  const invalid=storySample();invalid.answers.story_path.values=['game','room_history'];assert.throws(()=>validate(invalid),/Invalid choice/);
  invalid.answers.story_path.values=['mystery'];assert.throws(()=>validate(invalid),/Invalid choice/);
  const incomplete=storySample();delete incomplete.answers.story_impression;assert.throws(()=>validate(incomplete),/Incomplete finish/);assert.equal(validate({...incomplete,completed:false}).completed,false);
+});
+
+test('Block 25 keeps block 24 story answers intact and rejects cross-block answers',()=>{
+ const story=storySample();assert.deepEqual(validate(story).answers,story.answers);assert.equal(validate(story).completed,true);
+ const phone=phoneSample();assert.equal(validate(phone).blockVersion,1);assert.deepEqual(validate(phone).answers,phone.answers);
+ assert.throws(()=>validate({...phone,blockId:'detective-story-choice-v1'}),/Invalid answer/);
+ assert.throws(()=>validate({...story,blockId:'phone-daily-helper-v1'}),/Invalid answer/);
+ const mixed=phoneSample();mixed.answers.story_path=story.answers.story_path;assert.throws(()=>validate(mixed),/Invalid answer/);
+});
+
+test('Phone uses may combine, while none and global refusals stay exclusive and later answers stay single-choice',()=>{
+ const schema=blocks.find(b=>b.id==='phone-daily-helper-v1'),current=schema.questions[0];
+ const combined=phoneSample();combined.answers.phone_current.values=['explain','contact','save','plans','activities','other'];assert.deepEqual(validate(combined).answers,combined.answers);
+ for(const exclusive of ['none','unknown','private']){
+  const alone=phoneSample();alone.answers.phone_current={values:[exclusive],text:'Optional explanation',skipped:false};assert.deepEqual(validate(alone).answers,alone.answers);
+  for(const other of [...current.options.map(option=>option[0]),'other','unknown','private'].filter(value=>value!==exclusive)){
+   const contradiction=phoneSample();contradiction.answers.phone_current.values=[exclusive,other];assert.throws(()=>validate(contradiction),/Exclusive choice/);
+  }
+ }
+ for(const question of schema.questions){
+  for(const [choice] of question.options){const data=phoneSample();data.answers[question.id].values=[choice];assert.deepEqual(validate(data).answers,data.answers);}
+ }
+ for(const question of schema.questions.slice(1)){
+  const multiple=phoneSample();multiple.answers[question.id].values=question.options.slice(0,2).map(option=>option[0]);assert.throws(()=>validate(multiple),/Invalid choice/);
+ }
+});
+
+test('No desired phone feature, uncertainty or deliberate skips can finish without written text',()=>{
+ const none=phoneSample();none.answers.phone_current.values=['none'];none.answers.phone_feature.values=['none'];none.answers.phone_control.values=['not_needed'];
+ assert.equal(validate(none).completed,true);assert.deepEqual(validate(none).answers,none.answers);
+ for(const value of ['unknown','private']){const refusal=phoneSample();for(const answer of Object.values(refusal.answers))answer.values=[value];assert.equal(validate(refusal).completed,true);}
+ const skipped=phoneSample();for(const answer of Object.values(skipped.answers)){answer.values=[];answer.skipped=true;}assert.equal(validate(skipped).completed,true);
+ const incomplete=phoneSample();delete incomplete.answers.phone_control;assert.throws(()=>validate(incomplete),/Incomplete finish/);assert.equal(validate({...incomplete,completed:false}).completed,false);
 });
 test('Sixth block accepts practical experience and keeps older schemas separate',()=>{const data={...sample(),blockId:'hands-on-and-asking-v1',answers:{practical_task:{values:['settings'],text:'',skipped:false},asking_recently:{values:['not_asked'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'hands-on-and-asking-v1');assert.throws(()=>validate({...sample(),blockId:'hands-on-and-asking-v1'}));});
 test('Fifth block validates independently from earlier answers',()=>{const data={...sample(),blockId:'follow-up-examples-v1',answers:{tech_interest:{values:['devices'],text:'',skipped:false},repeat_result:{values:['forgot'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'follow-up-examples-v1');assert.throws(()=>validate({...sample(),blockId:'follow-up-examples-v1'}));});

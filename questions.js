@@ -272,7 +272,7 @@ export const twentyThirdBlock = {
  {id:'leisure_next',type:'single',title:['Что тебе удобнее получить дальше?','What would you prefer to see next?'],hint:['Можно попросить пример или другой список, решить позже или остановиться. Пример тоже ни к чему не обязывает.','You can ask for an example or a different list, decide later or stop here. An example does not mean you have to do the activity.'],options:[['example','Короткий пример одного из этих занятий','A short example of one of these activities'],['more_ideas','Ещё несколько других идей','Some different activity ideas'],['later','Пока оставить этот список, решу позже','Keep this list for now; I will decide later'],['pause','Сейчас не хочу продолжения','I do not want anything more for now']]}
  ]
 };
-export const block = {
+export const twentyFourthBlock = {
  id:'detective-story-choice-v1',version:1,requiresFinish:true,
  label:['Блок 24 · Фотография в книге','Set 24 · The photo in the book'],
  title:['Одна история —<br>разные продолжения','One story,<br>three paths'],
@@ -296,4 +296,35 @@ export const block = {
  ]}
  ]
 };
-export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,block];
+export const block = {
+ id:'phone-daily-helper-v1',version:1,requiresFinish:true,
+ label:['Блок 25 · Телефон, который удобен тебе','Set 25 · A phone that suits you'],
+ title:['Телефон,<br>который удобен тебе','A phone<br>that suits you'],
+ intro:['Три вопроса о том, как телефон уже помогает тебе и что хотелось бы сделать удобнее. Можно ничего не добавлять. Сейчас ничего включать или пробовать не нужно. Писать текст необязательно.','Three questions about how your phone already helps you and what could be easier. You can choose not to add anything. You do not need to turn anything on or try it now. Writing is optional.'],
+ questions:[
+ {id:'phone_current',type:'multi',exclusiveOptions:['none'],title:['В чём телефон уже помогает тебе?','What does your phone already help you with?'],hint:['Можно выбрать несколько ответов. Если подходящего варианта нет, есть «Другое» или «Ничего из этого».','You can choose more than one answer. If none of the answers fit, you can choose “Something else” or “None of these”.'],options:[
+ ['explain','Найти объяснение или узнать что-то нужное','Finding an explanation or information I need'],
+ ['contact','Связаться с человеком','Getting in touch with someone'],
+ ['save','Сохранить нужное и найти его позже','Saving something useful and finding it later'],
+ ['plans','Посмотреть планы, время события или маршрут','Checking plans, the time of an event or a route'],
+ ['activities','Найти интересное занятие','Finding an interesting activity'],
+ ['none','Ничего из этого','None of these']
+ ]},
+ {id:'phone_feature',type:'single',title:['Что ты хотел бы добавить или сделать удобнее?','What would you like to add or make easier?'],hint:['Представь одну удобную возможность для себя. Выбери ближайший вариант или предложи свой через «Другое». Можно оставить всё как есть.','Think of one feature that would be useful to you. Choose the closest answer or use “Something else” for your own idea. You can also leave things as they are.'],options:[
+ ['overview','Видеть свои ближайшие события и планы на одном экране','See my upcoming events and plans on one screen'],
+ ['reminders','Самому выбирать, о чём, когда и сколько раз напоминать','Choose what reminders are about, when they arrive and how often'],
+ ['lists','Удобные списки для дел, которые я хочу сделать','Easy-to-use lists for things I want to do'],
+ ['message_help','Получать помощь с формулировкой сообщения или вопроса','Get help writing a message or a question'],
+ ['search','Быстро находить сохранённые ссылки, сообщения и заметки','Quickly find links, messages and notes I have saved'],
+ ['none','Ничего добавлять или менять не хочу','I do not want to add or change anything']
+ ]},
+ {id:'phone_control',type:'single',title:['Как тебе удобнее пользоваться такой помощью?','How would you prefer to use help like this?'],hint:['Речь о том, как было бы удобно тебе самому. Можно сначала посмотреть пример или выбрать, что помощь пока не нужна.','This is about what would suit you. You can see an example first or choose that you do not need this help for now.'],options:[
+ ['on_demand','Сам открываю, когда мне нужно','I open it myself when I need it'],
+ ['one_button','Запускаю одной удобной кнопкой','I use one easy-to-find button'],
+ ['chosen_time','Получаю сообщение в выбранное мной время','I get a message at a time I choose'],
+ ['example','Сначала хочу посмотреть короткий пример','I would like to see a short example first'],
+ ['not_needed','Пока такая помощь не нужна','I do not need this help for now']
+ ]}
+ ]
+};
+export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,block];
