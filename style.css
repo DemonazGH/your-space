@@ -23,3 +23,14 @@
 .passage-card p{margin:0 0 16px;color:#e4ebf7;font-size:17px;line-height:1.75}
 .passage-card p:last-child{margin-bottom:0}
 @media(max-width:480px){.passage-card{padding:18px}.passage-card h2{font-size:19px}}
+.plan-preview{margin:24px 0;padding:20px;border:1px solid var(--line);border-radius:18px;background:var(--panel);overflow-wrap:anywhere}
+.plan-preview h2{margin:0 0 12px;color:#eaf1ff;font-size:20px;line-height:1.4;font-weight:650}
+.plan-preview-notice{margin:0 0 18px;font-size:15px;line-height:1.6}
+.plan-preview-details{margin:0}
+.plan-preview summary{min-height:54px;padding:15px 18px;border:1px solid var(--accent);border-radius:13px;background:var(--accent);color:#102d34;font-size:18px;line-height:1.4;font-weight:650;cursor:pointer}
+.plan-preview summary:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.plan-preview-list{display:grid;gap:10px;list-style:none;padding:0;margin:16px 0 0}
+.plan-preview-item{display:grid;gap:4px;min-width:0;padding:14px;border:1px solid var(--line);border-radius:12px;background:#101c30}
+.plan-preview-when{color:var(--muted);font-size:14px;line-height:1.5}
+.plan-preview-item-title{color:#eaf1ff;font-size:17px;line-height:1.5;font-weight:600}
+@media(max-width:480px){.plan-preview{padding:16px}.plan-preview summary{padding:14px}.plan-preview-item{padding:12px}}

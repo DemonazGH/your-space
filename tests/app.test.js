@@ -155,6 +155,52 @@ test('Questions without a passage keep their normal hint and choices when moving
  assert.equal(a.queued.at(-1).answers.story_choice.text,'My own answer');
 });
 
+const planFixture={...block,id:'plan-fixture-v1',questions:[
+ {id:'plan_look',type:'single',title:['Как тебе такой экран?','What do you think of this screen?'],
+  planPreview:{
+   title:['Макет <img src=x> & планы','Preview <script>bad()</script> & plans'],
+   button:['Мои планы "пример"','My plans "sample"'],
+   notice:['Все события вымышлены. Реальные планы и уведомления не создаются. <b>Пример</b>.','All events are made up. No real plans or reminders are created. <b>Sample</b>.'],
+   items:[
+    {when:['Сегодня <b>18:00</b>','Today <b>18:00</b>'],title:['Встреча "пример" & заметка','A "sample" meeting & note']},
+    {when:['Завтра','Tomorrow'],title:['Дело <script>bad()</script>','A task <img src=x>']},
+    {when:['В пятницу','On Friday'],title:['Третий пример','A third sample']},
+    {when:['В субботу','On Saturday'],title:['Четвёртый пример','A fourth sample']}
+   ]
+  },hint:['Выбери то, что думаешь.','Choose what you think.'],options:[['yes','Подходит','It suits me']]},
+ {id:'plain_plan_question',type:'single',title:['Другой вопрос','Another question'],hint:['Обычная подсказка.','A plain hint.'],options:[['yes','Да','Yes']]}
+]};
+
+test('Plan previews are initially closed, clearly fictional and fully escaped in Russian and English',()=>{
+ const a=app({definition:planFixture});a.start();
+ for(const [language,hint,expected] of [
+  [0,'Выбери то, что думаешь.',['Макет &lt;img src=x&gt; &amp; планы','Мои планы &quot;пример&quot;','Все события вымышлены. Реальные планы и уведомления не создаются. &lt;b&gt;Пример&lt;/b&gt;.','Сегодня &lt;b&gt;18:00&lt;/b&gt;','Встреча &quot;пример&quot; &amp; заметка','Дело &lt;script&gt;bad()&lt;/script&gt;']],
+  [1,'Choose what you think.',['Preview &lt;script&gt;bad()&lt;/script&gt; &amp; plans','My plans &quot;sample&quot;','All events are made up. No real plans or reminders are created. &lt;b&gt;Sample&lt;/b&gt;.','Today &lt;b&gt;18:00&lt;/b&gt;','A &quot;sample&quot; meeting &amp; note','A task &lt;img src=x&gt;']]
+ ]){
+  a.languages[language].onclick();
+  const html=a.element('#app').innerHTML,preview=html.match(/<section class="plan-preview"[\s\S]*?<\/section>/)?.[0];
+  assert.ok(preview);for(const text of expected)assert.ok(preview.includes(text));
+  assert.match(preview,/<details class="plan-preview-details"><summary aria-describedby="plan-preview-notice">/);
+  assert.ok(preview.indexOf('id="plan-preview-notice"')<preview.indexOf('<details'));
+  assert.doesNotMatch(preview,/<details\b[^>]*\bopen(?:\s|=|>)/);
+  assert.doesNotMatch(preview,/<(?:img|script|b)(?:\s|>)|<(?:input|button)\b|on(?:click|toggle)=/);
+  assert.equal((preview.match(/<li class="plan-preview-item">/g)||[]).length,4);
+  assert.ok(html.indexOf('</h1>')<html.indexOf(preview));assert.ok(html.indexOf(preview)<html.indexOf(hint));assert.ok(html.indexOf(hint)<html.indexOf('<fieldset'));
+  assert.deepEqual(a.queued.at(-1).answers,{});assert.equal(a.queued.at(-1).completed,false);
+ }
+});
+
+test('Viewing a plan preview does not fill answers and ordinary questions do not display it',()=>{
+ const a=app({definition:planFixture});a.start();
+ assert.match(a.element('#app').innerHTML,/class="plan-preview"/);
+ a.element('#next').onclick();
+ assert.doesNotMatch(a.element('#app').innerHTML,/plan-preview/);
+ assert.match(a.element('#app').innerHTML,/<h1 id="heading" tabindex="-1">Другой вопрос<\/h1><p>Обычная подсказка\.<\/p><fieldset/);
+ assert.deepEqual(a.queued.at(-1).answers,{});assert.equal(a.queued.at(-1).completed,false);assert.equal(a.element('#finish').disabled,true);
+ a.element('#next').onclick();
+ assert.equal(a.queued.at(-1).screen,'review');assert.deepEqual(a.queued.at(-1).answers,{});assert.equal(a.element('#finish').disabled,true);
+});
+
 test('Finish shows waiting or retry until remote acknowledgement, then permits closing',()=>{
  const a=app();a.start();
  for(let i=0;i<block.questions.length;i++)a.element('#skip').onclick();

@@ -296,7 +296,7 @@ export const twentyFourthBlock = {
  ]}
  ]
 };
-export const block = {
+export const twentyFifthBlock = {
  id:'phone-daily-helper-v1',version:1,requiresFinish:true,
  label:['Блок 25 · Телефон, который удобен тебе','Set 25 · A phone that suits you'],
  title:['Телефон,<br>который удобен тебе','A phone<br>that suits you'],
@@ -327,4 +327,38 @@ export const block = {
  ]}
  ]
 };
-export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,block];
+const plansPreview = {
+ title:['Мои планы','My plans'],
+ button:['Открыть пример «Мои планы»','Open the “My plans” example'],
+ notice:['Это пример. Все события вымышлены. Ничего не добавляется в твои планы; уведомления не включаются.','This is an example. All events are made up. Nothing is added to your plans and no reminders are turned on.'],
+ items:[
+ {when:['Сегодня · 16:00','Today · 16:00'],title:['Подготовка к английскому','English practice']},
+ {when:['Завтра · 17:00','Tomorrow · 17:00'],title:['Запись к парикмахеру','Hair appointment']},
+ {when:['В субботу · 19:00','Saturday · 19:00'],title:['Игра с друзьями','A game with friends']},
+ {when:['Без точного времени','No set time'],title:['Разобрать фотографии','Sort my photos']}
+ ]
+};
+export const block = {
+ id:'plans-screen-preview-v1',version:1,requiresFinish:true,
+ label:['Блок 26 · Пример «Мои планы»','Set 26 · A “My plans” example'],
+ title:['Как мог бы выглядеть<br>твой список планов','What could your<br>list of plans look like?'],
+ intro:['Небольшой пример экрана «Мои планы» и два вопроса о том, что подошло бы тебе. Можно открыть пример одной кнопкой или не открывать. События вымышлены; ничего выполнять, настраивать или добавлять в календарь не нужно. Писать текст необязательно.','A small example of a “My plans” screen and two questions about what would suit you. You can open the example with one button or leave it closed. The events are made up. You do not need to do any tasks, change any settings or add anything to a calendar. Writing is optional.'],
+ questions:[
+ {id:'plan_contents',type:'multi',exclusiveOptions:['none'],title:['Что тебе хотелось бы видеть в своём списке?','What would you like to see in your own list?'],planPreview:plansPreview,hint:['Можно выбрать несколько видов планов, свой вариант через «Другое» или «Пока ничего из этого». Речь о том, что хотелось бы видеть у себя, а не о выполнении дел из примера.','You can choose more than one kind of plan, use “Something else” for your own idea or choose “None of these for now”. Think about what you would like in your own list. You do not need to do any of the tasks in the example.'],options:[
+ ['study','Учебные дела и события','School tasks and events'],
+ ['appointments','Встречи и записи','Meetings and appointments'],
+ ['personal','Мои личные планы','My personal plans'],
+ ['untimed','Дела без точного времени','Tasks without a set time'],
+ ['none','Пока ничего из этого','None of these for now']
+ ]},
+ {id:'plan_feedback',type:'single',title:['Что ты думаешь об этом примере экрана?','What do you think of this example screen?'],planPreview:plansPreview,hint:['Можно снова открыть тот же пример. Выбери один ближайший ответ: оставить как есть, что-то изменить или пока не пользоваться таким экраном. Если пример не смотрел, есть такой вариант.','You can open the same example again. Choose the closest answer: keep it as it is, change something or not use a screen like this for now. There is also an answer if you have not looked at the example.'],options:[
+ ['as_is','Этот пример мне подходит как есть','This example suits me as it is'],
+ ['fewer','Хотелось бы видеть меньше записей сразу','I would like to see fewer items at once'],
+ ['more_details','Хотелось бы больше сведений о каждой записи','I would like more details about each item'],
+ ['other_plans','Хотелось бы другие виды планов','I would like other kinds of plans'],
+ ['not_needed','Пока такой экран не нужен','I do not need a screen like this for now'],
+ ['not_viewed','Пока не смотрел пример','I have not looked at the example yet']
+ ]}
+ ]
+};
+export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,twentyFifthBlock,block];

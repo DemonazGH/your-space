@@ -40,6 +40,10 @@ const phoneSample=()=>({...sample(),blockId:'phone-daily-helper-v1',completed:tr
  phone_feature:{values:['overview'],text:'',skipped:false},
  phone_control:{values:['on_demand'],text:'',skipped:false}
 }});
+const plansSample=()=>({...sample(),blockId:'plans-screen-preview-v1',completed:true,answers:{
+ plan_contents:{values:['study','personal'],text:'',skipped:false},
+ plan_feedback:{values:['as_is'],text:'',skipped:false}
+}});
 
 test('Published block 19 completion still validates without changing its saved answers',()=>{
  const data=schoolSample(),saved=validate(data);assert.equal(saved.blockId,'school-task-motivation-v1');assert.equal(saved.blockVersion,1);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,data.answers);
@@ -185,6 +189,25 @@ test('No desired phone feature, uncertainty or deliberate skips can finish witho
  for(const value of ['unknown','private']){const refusal=phoneSample();for(const answer of Object.values(refusal.answers))answer.values=[value];assert.equal(validate(refusal).completed,true);}
  const skipped=phoneSample();for(const answer of Object.values(skipped.answers)){answer.values=[];answer.skipped=true;}assert.equal(validate(skipped).completed,true);
  const incomplete=phoneSample();delete incomplete.answers.phone_control;assert.throws(()=>validate(incomplete),/Incomplete finish/);assert.equal(validate({...incomplete,completed:false}).completed,false);
+});
+
+test('Plan-preview answers stay separate from preserved block 25 phone-helper answers',()=>{
+ const phone=phoneSample();assert.deepEqual(validate(phone).answers,phone.answers);assert.equal(validate(phone).completed,true);
+ const plans=plansSample();assert.deepEqual(validate(plans).answers,plans.answers);assert.equal(validate(plans).blockVersion,1);
+ assert.throws(()=>validate({...plans,blockId:'phone-daily-helper-v1'}),/Invalid answer/);
+ assert.throws(()=>validate({...phone,blockId:'plans-screen-preview-v1'}),/Invalid answer/);
+ const mixed=plansSample();mixed.answers.phone_control=phone.answers.phone_control;assert.throws(()=>validate(mixed),/Invalid answer/);
+});
+
+test('Block 26 permits combined plan categories, opting out and not viewing, but rejects contradictory choices',()=>{
+ const combined=plansSample();combined.answers.plan_contents.values=['study','appointments','personal','untimed'];assert.deepEqual(validate(combined).answers,combined.answers);
+ const none=plansSample();none.answers.plan_contents.values=['none'];none.answers.plan_feedback.values=['not_needed'];assert.equal(validate(none).completed,true);assert.deepEqual(validate(none).answers,none.answers);
+ const notViewed=plansSample();notViewed.answers.plan_contents={values:[],text:'',skipped:true};notViewed.answers.plan_feedback.values=['not_viewed'];assert.equal(validate(notViewed).completed,true);
+ for(const exclusive of ['none','unknown','private']){
+  const single=plansSample();single.answers.plan_contents.values=[exclusive];assert.equal(validate(single).completed,true);
+  single.answers.plan_contents.values.push('study');assert.throws(()=>validate(single),/Exclusive choice/);
+ }
+ const multipleFeedback=plansSample();multipleFeedback.answers.plan_feedback.values=['as_is','fewer'];assert.throws(()=>validate(multipleFeedback),/Invalid choice/);
 });
 test('Sixth block accepts practical experience and keeps older schemas separate',()=>{const data={...sample(),blockId:'hands-on-and-asking-v1',answers:{practical_task:{values:['settings'],text:'',skipped:false},asking_recently:{values:['not_asked'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'hands-on-and-asking-v1');assert.throws(()=>validate({...sample(),blockId:'hands-on-and-asking-v1'}));});
 test('Fifth block validates independently from earlier answers',()=>{const data={...sample(),blockId:'follow-up-examples-v1',answers:{tech_interest:{values:['devices'],text:'',skipped:false},repeat_result:{values:['forgot'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'follow-up-examples-v1');assert.throws(()=>validate({...sample(),blockId:'follow-up-examples-v1'}));});

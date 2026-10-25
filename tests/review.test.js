@@ -88,6 +88,17 @@ test('Review maps three phone-helper answers and preserves refusal of any additi
  const skipped=sample(schema);for(const answer of Object.values(skipped.data.answers)){answer.values=[];answer.skipped=true;}assert.ok(reviewCandidate(skipped).answers.every(answer=>answer.skipped));
 });
 
+test('Review treats plan-preview feedback as preferences and preserves opting out or not viewing',()=>{
+ const schema=blocks.find(definition=>definition.id==='plans-screen-preview-v1'),[contents,feedback]=schema.questions;
+ const record=sample(schema);record.data.answers[contents.id].values=['study','untimed'];record.data.answers[feedback.id].values=['more_details'];
+ const reviewed=reviewCandidate(record);assert.equal(reviewed.answers.length,2);assert.deepEqual(reviewed.answers[0].selected.map(choice=>choice.id),['study','untimed']);assert.equal(reviewed.answers[1].selected[0].id,'more_details');assert.ok(reviewed.answers.every(answer=>answer.text===''));
+ const none=sample(schema);none.data.answers[contents.id].values=['none'];none.data.answers[feedback.id].values=['not_needed'];assert.deepEqual(reviewCandidate(none).answers.map(answer=>answer.selected[0].id),['none','not_needed']);
+ const notViewed=sample(schema);notViewed.data.answers[contents.id]={values:[],text:'',skipped:true};notViewed.data.answers[feedback.id].values=['not_viewed'];
+ const result=reviewCandidate(notViewed);assert.equal(result.answers[0].skipped,true);assert.equal(result.answers[1].selected[0].id,'not_viewed');
+ const contradiction=sample(schema);contradiction.data.answers[contents.id].values=['none','study'];assert.throws(()=>parseParticipantRecord(contradiction.data,contradiction.path),/invalid_choices/);
+ const phoneAnswer=sample(schema);phoneAnswer.data.answers.phone_feature={values:['overview'],text:'',skipped:false};assert.throws(()=>parseParticipantRecord(phoneAnswer.data,phoneAnswer.path));
+});
+
 test('Baseline never consumes block 17 or future blocks and ignores unfinished legacy records',()=>{
  const old=sample(sixteenthBlock),current=sample(),unfinished=sample(blocks[0]);unfinished.data.completed=false;
  assert.deepEqual(legacyBaselineEntries([old,current,unfinished]),{[old.path]:old.sha});
