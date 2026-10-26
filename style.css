@@ -34,3 +34,20 @@
 .plan-preview-when{color:var(--muted);font-size:14px;line-height:1.5}
 .plan-preview-item-title{color:#eaf1ff;font-size:17px;line-height:1.5;font-weight:600}
 @media(max-width:480px){.plan-preview{padding:16px}.plan-preview summary{padding:14px}.plan-preview-item{padding:12px}}
+.entry-mockup{margin:24px 0;padding:20px;border:1px solid var(--line);border-radius:18px;background:var(--panel);overflow-wrap:anywhere}
+.entry-mockup h2{margin:0 0 12px;font-size:20px;line-height:1.4}.entry-mockup h3{margin:0 0 16px;font-size:19px;line-height:1.4}
+.entry-notice{margin:0 0 18px;font-size:15px;line-height:1.6}
+.entry-nav,.entry-formats{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
+.entry-button{min-width:0;min-height:44px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#101c30;color:#eaf1ff;font-size:16px;line-height:1.4;white-space:normal;overflow-wrap:anywhere}
+.entry-nav .entry-button,.entry-formats .entry-button{flex:1 1 100px}
+.entry-button[aria-pressed=true]{border-color:var(--accent);background:#203e48;color:var(--accent)}
+.entry-button.entry-primary{border-color:var(--accent);background:var(--accent);color:#102d34;font-weight:650}
+.entry-panel{padding:18px 0 0;border-top:1px solid var(--line)}.entry-mockup [hidden]{display:none!important}
+.entry-cards{display:grid;gap:10px;padding:0;margin:0 0 16px;list-style:none}
+.entry-cards li,.entry-suggestion{display:grid;gap:5px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#101c30;font-size:16px;line-height:1.5}
+.entry-category,.entry-cards li>span:last-child,.entry-suggestion>span{font-size:14px;color:var(--muted)}
+.entry-fields{display:grid;gap:14px;margin:0 0 16px}.entry-field{display:grid;gap:7px;font-size:15px;line-height:1.5;min-width:0}
+.entry-field input{min-width:0;width:100%;min-height:44px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#101c30;color:#eaf1ff;font-size:16px}
+.entry-source{margin:0 0 12px;font-size:14px}.entry-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.entry-actions .entry-button{flex:1 1 90px}
+.entry-status{margin:16px 0 0;font-size:14px;line-height:1.6;color:var(--accent)}.entry-status:empty{margin:0}
+@media(max-width:480px){.entry-mockup{padding:16px}.entry-button{padding:12px 10px}.entry-cards li,.entry-suggestion{padding:12px}}

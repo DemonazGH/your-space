@@ -338,7 +338,7 @@ const plansPreview = {
  {when:['Без точного времени','No set time'],title:['Разобрать фотографии','Sort my photos']}
  ]
 };
-export const block = {
+export const twentySixthBlock = {
  id:'plans-screen-preview-v1',version:1,requiresFinish:true,
  label:['Блок 26 · Пример «Мои планы»','Set 26 · A “My plans” example'],
  title:['Как мог бы выглядеть<br>твой список планов','What could your<br>list of plans look like?'],
@@ -361,4 +361,24 @@ export const block = {
  ]}
  ]
 };
-export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,twentyFifthBlock,block];
+export const block = {
+ id:'plans-entry-choice-v1',version:1,requiresFinish:true,
+ label:['Блок 27 · Как добавлять планы','Set 27 · Adding plans'],
+ title:['Как планы появляются<br>в твоём списке','How plans could appear<br>in your list'],
+ intro:['Два вопроса о том, как тебе было бы удобнее наполнять свой список. Можно посмотреть три экрана макета и переключить два примера добавления. Это только выбор предпочтений: все записи вымышлены, настоящие планы добавлять не нужно. Смотреть макет и писать текст необязательно.','Two questions about how you would prefer to add plans to your list. You can look at three example screens and switch between two ways to add a plan. These are only questions about your preferences. All items are made up; you do not need to add any real plans. Looking at the examples and writing are optional.'],
+ questions:[
+ {id:'plan_source',type:'single',entryMockup:true,title:['Как тебе было бы удобнее наполнять свой список?','How would you prefer to add plans to your list?'],hint:['Выбери один ближайший ответ. Это пожелание о будущем списке, а не согласие на добавление настоящих событий. Можно не выбирать способ сейчас.','Choose the closest answer. This is a preference for a future list, not permission to add real events. You can decide not to choose a way for now.'],options:[
+ ['self','Сам добавляю планы, которые выбираю','I add the plans I choose myself'],
+ ['suggestions','Другой человек предлагает план, а я могу принять, изменить или отклонить его','Someone suggests a plan, and I can accept, change or say no to it'],
+ ['both','Мне подходят оба способа','Both ways would suit me'],
+ ['not_now','Пока не хочу пользоваться таким списком','I do not want to use a list like this for now']
+ ]},
+ {id:'plan_entry',type:'single',entryMockup:true,title:['Если ты захочешь сам добавить план, какой способ тебе ближе?','If you want to add a plan yourself, which way would you prefer?'],hint:['В макете можно открыть «Добавление»: там можно переключить примеры «Отдельные поля» и «Одной строкой». Можно попросить пример позже или пока не добавлять планы самому.','You can open “Add a plan” in the preview and switch between “Separate fields” and “One line”. You can ask to see an example later or choose not to add plans yourself for now.'],options:[
+ ['fields','Нажать «Добавить план» и заполнить отдельные поля: название, дата, время','Press “Add a plan” and fill in separate fields: title, date and time'],
+ ['line','Написать одной короткой строкой — например: «Английский в среду в 17:00»','Write one short line, for example: “English on Wednesday at 17:00”'],
+ ['example','Сначала посмотреть, как выглядят эти два способа','See what these two ways look like first'],
+ ['not_now','Пока сам добавлять планы не хочу','I do not want to add plans myself for now']
+ ]}
+ ]
+};
+export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,twentyFifthBlock,twentySixthBlock,block];

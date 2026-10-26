@@ -44,6 +44,10 @@ const plansSample=()=>({...sample(),blockId:'plans-screen-preview-v1',completed:
  plan_contents:{values:['study','personal'],text:'',skipped:false},
  plan_feedback:{values:['as_is'],text:'',skipped:false}
 }});
+const entrySample=()=>({...sample(),blockId:'plans-entry-choice-v1',completed:true,answers:{
+ plan_source:{values:['self'],text:'',skipped:false},
+ plan_entry:{values:['fields'],text:'',skipped:false}
+}});
 
 test('Published block 19 completion still validates without changing its saved answers',()=>{
  const data=schoolSample(),saved=validate(data);assert.equal(saved.blockId,'school-task-motivation-v1');assert.equal(saved.blockVersion,1);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,data.answers);
@@ -208,6 +212,28 @@ test('Block 26 permits combined plan categories, opting out and not viewing, but
   single.answers.plan_contents.values.push('study');assert.throws(()=>validate(single),/Exclusive choice/);
  }
  const multipleFeedback=plansSample();multipleFeedback.answers.plan_feedback.values=['as_is','fewer'];assert.throws(()=>validate(multipleFeedback),/Invalid choice/);
+});
+
+test('Block 27 accepts plan-entry preferences without changing or mixing block 26 answers',()=>{
+ const plans=plansSample();assert.deepEqual(validate(plans).answers,plans.answers);assert.equal(validate(plans).completed,true);
+ const entry=entrySample();assert.deepEqual(validate(entry).answers,entry.answers);assert.equal(validate(entry).blockVersion,1);
+ assert.throws(()=>validate({...entry,blockId:'plans-screen-preview-v1'}),/Invalid answer/);
+ assert.throws(()=>validate({...plans,blockId:'plans-entry-choice-v1'}),/Invalid answer/);
+ const mixed=entrySample();mixed.answers.plan_contents=plans.answers.plan_contents;assert.throws(()=>validate(mixed),/Invalid answer/);
+});
+
+test('Block 27 choices, not-now, global refusals and skips finish without mandatory text',()=>{
+ const schema=blocks.find(b=>b.id==='plans-entry-choice-v1');
+ for(const [source] of schema.questions[0].options){
+  for(const [method] of schema.questions[1].options){
+   const data=entrySample();data.answers.plan_source.values=[source];data.answers.plan_entry.values=[method];assert.deepEqual(validate(data).answers,data.answers);
+  }
+ }
+ for(const value of ['other','unknown','private','not_now']){
+  const data=entrySample();for(const answer of Object.values(data.answers))answer.values=[value];assert.equal(validate(data).completed,true);
+ }
+ const skipped=entrySample();for(const answer of Object.values(skipped.answers)){answer.values=[];answer.skipped=true;}assert.equal(validate(skipped).completed,true);
+ for(const question of schema.questions){const multiple=entrySample();multiple.answers[question.id].values=question.options.slice(0,2).map(option=>option[0]);assert.throws(()=>validate(multiple),/Invalid choice/);}
 });
 test('Sixth block accepts practical experience and keeps older schemas separate',()=>{const data={...sample(),blockId:'hands-on-and-asking-v1',answers:{practical_task:{values:['settings'],text:'',skipped:false},asking_recently:{values:['not_asked'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'hands-on-and-asking-v1');assert.throws(()=>validate({...sample(),blockId:'hands-on-and-asking-v1'}));});
 test('Fifth block validates independently from earlier answers',()=>{const data={...sample(),blockId:'follow-up-examples-v1',answers:{tech_interest:{values:['devices'],text:'',skipped:false},repeat_result:{values:['forgot'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'follow-up-examples-v1');assert.throws(()=>validate({...sample(),blockId:'follow-up-examples-v1'}));});

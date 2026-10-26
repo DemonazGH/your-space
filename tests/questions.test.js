@@ -7,7 +7,7 @@ import {block as activeBlock,blocks} from '../questions.js';
 test('Second block has four bilingual questions and a distinct identity',()=>{assert.notEqual(second.id,block.id);assert.equal(second.questions.length,4);assert.equal(new Set(second.questions.map(q=>q.id)).size,4);for(const q of second.questions){assert.equal(q.title.length,2);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>x.trim()));}}});
 test('Stable unique question IDs and equivalent bilingual choices',()=>{assert.equal(block.questions.length,6);assert.equal(new Set(block.questions.map(q=>q.id)).size,6);for(const q of block.questions){assert.equal(q.title.length,2);assert(q.title.every(x=>typeof x==='string'&&x.trim()));assert.equal(new Set(q.options.map(o=>o[0])).size,q.options.length);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>typeof x==='string'&&x.trim()));assert(!['other','unknown','private'].includes(o[0]));}}});
 
-// Fingerprints of answer schemas from the published 25-block catalogue. Labels
+// Fingerprints of answer schemas from the published 26-block catalogue. Labels
 // may be improved, but saved question IDs, choice IDs, types and versions must stay valid.
 const historicalSchemas=[
  ['first-steps-v1','f0ca255be1cba1838ae6a761270128b94b878cea9e3b445a7383fb4c237dec56'],
@@ -34,17 +34,18 @@ const historicalSchemas=[
  ['own-priorities-v1','3490aa13c218bc9c3cb755db156b7b1bd43a16b17f39957144460513c31a73a9'],
  ['leisure-activity-choice-v1','20f3fd1271bf01885bd1f7716aec290b49ad0a16badeddab875fda1e6d2c4ead'],
  ['detective-story-choice-v1','ef1e741b4cad2c0fd3057d2a84d9d1a8b4c995dcce5bbb7ba9277037cb25c63c'],
- ['phone-daily-helper-v1','cc158ed9b49a4aae273184afbc161824417f29d6755cd2aac37cbacdac4916e2']
+ ['phone-daily-helper-v1','cc158ed9b49a4aae273184afbc161824417f29d6755cd2aac37cbacdac4916e2'],
+ ['plans-screen-preview-v1','b5f2d690a1d1304ec33cb90cd0bda0e83b1f76d0a0a8a58251ab8a9abc885e6a']
 ];
 function schemaDigest(definition){
  const schema={id:definition.id,version:definition.version,requiresFinish:definition.requiresFinish===true,questions:definition.questions.map(q=>({id:q.id,type:q.type,options:q.options.map(o=>o[0]),...(q.exclusiveOptions?{exclusiveOptions:q.exclusiveOptions}:{})}))};
  return createHash('sha256').update(JSON.stringify(schema)).digest('hex');
 }
 
-test('The 26-block catalogue preserves all 25 published answer schemas and unique identities',()=>{
- assert.equal(blocks.length,26);
- assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'plans-screen-preview-v1']);
- assert.equal(new Set(blocks.map(b=>b.id)).size,26);assert.equal(blocks.at(-1),activeBlock);
+test('The 27-block catalogue preserves all 26 published answer schemas and unique identities',()=>{
+ assert.equal(blocks.length,27);
+ assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'plans-entry-choice-v1']);
+ assert.equal(new Set(blocks.map(b=>b.id)).size,27);assert.equal(blocks.at(-1),activeBlock);
  for(const [id,digest] of historicalSchemas){assert.equal(schemaDigest(blocks.find(b=>b.id===id)),digest,`Published answer schema changed: ${id}`);}
 });
 
@@ -130,17 +131,27 @@ test('Block 25 separates current phone uses, an optional feature and preferred c
 });
 
 test('Block 26 asks for preferred plan contents and one impression of an optional preview',()=>{
- assert.equal(activeBlock.id,'plans-screen-preview-v1');assert.equal(activeBlock.version,1);assert.equal(activeBlock.requiresFinish,true);
- assert.deepEqual(activeBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
+ const plansBlock=blocks.find(b=>b.id==='plans-screen-preview-v1');
+ assert.ok(plansBlock);assert.equal(plansBlock.version,1);assert.equal(plansBlock.requiresFinish,true);
+ assert.deepEqual(plansBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
   ['plan_contents','multi',['study','appointments','personal','untimed','none']],
   ['plan_feedback','single',['as_is','fewer','more_details','other_plans','not_needed','not_viewed']]
  ]);
- assert.deepEqual(activeBlock.questions[0].exclusiveOptions,['none']);
- const preview=activeBlock.questions[0].planPreview;
- assert.deepEqual(activeBlock.questions[1].planPreview,preview);
+ assert.deepEqual(plansBlock.questions[0].exclusiveOptions,['none']);
+ const preview=plansBlock.questions[0].planPreview;
+ assert.deepEqual(plansBlock.questions[1].planPreview,preview);
  for(const field of ['title','button','notice']){assert.equal(preview[field].length,2);assert.ok(preview[field].every(text=>typeof text==='string'&&text.trim()));}
  assert.equal(preview.items.length,4);
  for(const item of preview.items){for(const field of ['when','title']){assert.equal(item[field].length,2);assert.ok(item[field].every(text=>typeof text==='string'&&text.trim()));}}
+});
+
+test('Block 27 asks two single-choice preferences about the source and entry method of plans',()=>{
+ assert.equal(activeBlock.id,'plans-entry-choice-v1');assert.equal(activeBlock.version,1);assert.equal(activeBlock.requiresFinish,true);
+ assert.deepEqual(activeBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
+  ['plan_source','single',['self','suggestions','both','not_now']],
+  ['plan_entry','single',['fields','line','example','not_now']]
+ ]);
+ assert.ok(activeBlock.questions.every(question=>question.entryMockup===true));
 });
 
 

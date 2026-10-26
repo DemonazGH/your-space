@@ -7,12 +7,22 @@ import {block,blocks} from '../questions.js';
 function app({cloudMode=true,definition=block}={}){
  const elements=new Map(),memory=new Map(),queued=[];
  let retries=0,syncCallback,lastQueued='';
- const element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',disabled:false,hidden:false,dataset:{},focus(){},setAttribute(){},append(){}});return elements.get(id);};
+ const element=id=>{if(!elements.has(id)){const attributes={};elements.set(id,{innerHTML:'',textContent:'',disabled:false,hidden:false,dataset:{},focus(){},setAttribute(name,value){attributes[name]=value;},getAttribute:name=>attributes[name]??null,append(){}});}return elements.get(id);};
  const languages=['ru','en'].map(lang=>({...element(lang),dataset:{lang}}));
  const inputs=[...new Set(['unknown','private','other',...definition.questions.flatMap(q=>q.options.map(o=>o[0]))])].map(value=>({value,checked:false}));
  const edits=definition.questions.map((q,index)=>({dataset:{index:String(index)}}));
  const finishSelectors=new Set(['#finish','#finish-mark','#finish-label','#finish-save-status','#finish-save-panel','#finish-retry']);
- const querySelector=selector=>finishSelectors.has(selector)&&!element('#app').innerHTML.includes(`id="${selector.slice(1)}"`)?null:element(selector);
+ const group=(key,values)=>values.map(value=>{const node=element(`entry:${key}:${value}`);node.dataset[key]=value;return node;});
+ const entryGroups={
+  '[data-entry-screen]':group('entryScreen',['plans','add','suggested']),
+  '[data-entry-panel]':group('entryPanel',['plans','add','suggested']),
+  '[data-entry-format]':group('entryFormat',['fields','line']),
+  '[data-entry-format-panel]':group('entryFormatPanel',['fields','line']),
+  '[data-entry-action]':group('entryAction',['accept','edit','decline'])
+ };
+ const entrySingles=Object.fromEntries(['status','proposed-time','add','save'].map(name=>[`[data-entry-${name}]`,element('entry:'+name)]));
+ const entry={querySelector:selector=>entrySingles[selector]||null,querySelectorAll:selector=>entryGroups[selector]||[]};
+ const querySelector=selector=>selector==='[data-entry-mockup]'?(element('#app').innerHTML.includes('data-entry-mockup')?entry:null):finishSelectors.has(selector)&&!element('#app').innerHTML.includes(`id="${selector.slice(1)}"`)?null:element(selector);
  const document={documentElement:{},querySelector,querySelectorAll:s=>s==='[data-lang]'?languages:s==='[name=answer]'?inputs:s==='[name=answer]:checked'?inputs.filter(x=>x.checked):s==='.edit'?edits:[],createElement:()=>element('created')};
  const context={document,block:definition,cloudEnabled:cloudMode,testMode:true,storageKey:'test-key',queue:s=>{
   queued.push(JSON.parse(JSON.stringify(s)));
@@ -22,7 +32,7 @@ function app({cloudMode=true,definition=block}={}){
  },subscribe:fn=>{syncCallback=fn;fn('idle');},retrySave(){retries++;},cancel(){},localStorage:{getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)},window:{scrollTo(){}},confirm:()=>true};
  vm.createContext(context);
  vm.runInContext(readFileSync(new URL('../app.js',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,''),context);
- return {element,languages,inputs,edits,queued,retries:()=>retries,querySelector,setSync:value=>syncCallback(value),start(){element('#consent').onchange({target:{checked:true}});element('#start').onclick();}};
+ return {element,languages,inputs,edits,queued,entry,retries:()=>retries,querySelector,setSync:value=>syncCallback(value),start(){element('#consent').onchange({target:{checked:true}});element('#start').onclick();}};
 }
 
 test('Autosave keeps a complete draft unfinished until explicit finish, and editing reopens it',()=>{
@@ -199,6 +209,68 @@ test('Viewing a plan preview does not fill answers and ordinary questions do not
  assert.deepEqual(a.queued.at(-1).answers,{});assert.equal(a.queued.at(-1).completed,false);assert.equal(a.element('#finish').disabled,true);
  a.element('#next').onclick();
  assert.equal(a.queued.at(-1).screen,'review');assert.deepEqual(a.queued.at(-1).answers,{});assert.equal(a.element('#finish').disabled,true);
+});
+
+const entryFixture={...block,id:'entry-fixture-v1',questions:[
+ {id:'entry_preference',type:'single',entryMockup:true,title:['Как тебе удобнее?','Which way suits you?'],options:[['yes','Подходит','It suits me']]},
+ {id:'entry_plain',type:'single',title:['Обычный вопрос','A plain question'],options:[['yes','Да','Yes']]}
+]};
+
+test('Entry mockups show three bilingual fictional screens with readonly examples and isolated buttons',()=>{
+ const a=app({definition:entryFixture});a.start();
+ for(const [language,expected] of [
+  [0,['Мои планы','Добавление','Предложенный план','Отдельные поля','Одной строкой','Все записи вымышлены. Настоящие планы не сохраняются, уведомления не включаются.','Другой человек · пример','value="Английский"','value="Среда"']],
+  [1,['My plans','Add a plan','Suggested plan','Separate fields','One line','All items are made up. No real plans are saved and no reminders are turned on.','Another person · example','value="English practice"','value="Wednesday"']]
+ ]){
+  a.languages[language].onclick();
+  const widget=a.element('#app').innerHTML.match(/<section class="entry-mockup"[\s\S]*?<p class="entry-status"[\s\S]*?<\/p><\/section>/)?.[0];
+  assert.ok(widget);for(const text of expected)assert.ok(widget.includes(text));
+  assert.ok(widget.indexOf('id="entry-mockup-notice"')<widget.indexOf('<nav'));
+  assert.match(widget,/<nav[^>]*aria-label=/);assert.match(widget,/aria-controls="entry-panel-plans" aria-pressed="true"/);
+  const buttons=[...widget.matchAll(/<button\b[^>]*>/g)];assert.ok(buttons.length>0);
+  for(const [tag] of buttons){assert.match(tag,/type="button"/);assert.match(tag,/data-entry-(?:screen|add|format|save|action)/);}
+  const fields=[...widget.matchAll(/<input\b[^>]*>/g)];assert.equal(fields.length,4);
+  for(const [tag] of fields){assert.match(tag,/\breadonly\b/);assert.doesNotMatch(tag,/\bname=/);}
+  assert.doesNotMatch(widget,/name="answer"|id="note"|<textarea\b/);
+  assert.deepEqual(a.queued.at(-1).answers,{});assert.equal(a.queued.at(-1).completed,false);
+ }
+});
+
+test('Entry navigation, example saving and suggested-plan actions never queue or complete an answer',()=>{
+ const a=app({definition:entryFixture});a.start();
+ const find=(selector,key,value)=>a.entry.querySelectorAll(selector).find(node=>node.dataset[key]===value);
+ for(const language of [0,1]){
+  a.languages[language].onclick();
+  const count=a.queued.length,before=JSON.stringify(a.queued.at(-1));
+  assert.equal(find('[data-entry-panel]','entryPanel','plans').hidden,false);
+  a.entry.querySelector('[data-entry-add]').onclick();
+  assert.equal(find('[data-entry-panel]','entryPanel','add').hidden,false);assert.equal(find('[data-entry-panel]','entryPanel','plans').hidden,true);
+  assert.equal(find('[data-entry-screen]','entryScreen','add').getAttribute('aria-pressed'),'true');
+  find('[data-entry-format]','entryFormat','line').onclick();
+  assert.equal(find('[data-entry-format-panel]','entryFormatPanel','line').hidden,false);assert.equal(find('[data-entry-format-panel]','entryFormatPanel','fields').hidden,true);
+  find('[data-entry-format]','entryFormat','fields').onclick();assert.equal(find('[data-entry-format-panel]','entryFormatPanel','fields').hidden,false);
+  a.entry.querySelector('[data-entry-save]').onclick();assert.match(a.entry.querySelector('[data-entry-status]').textContent,/Только в примере|Only in this example/);
+  assert.match(a.entry.querySelector('[data-entry-status]').textContent,/Настоящий план не создан|No real plan was created/);
+  find('[data-entry-screen]','entryScreen','suggested').onclick();assert.equal(find('[data-entry-panel]','entryPanel','suggested').hidden,false);
+  for(const action of ['accept','edit','decline']){
+   find('[data-entry-action]','entryAction',action).onclick();
+   assert.match(a.entry.querySelector('[data-entry-status]').textContent,/Только в примере|Only in this example/);
+   assert.match(a.entry.querySelector('[data-entry-status]').textContent,/Настоящие планы не изменены|No real plans were changed/);
+  }
+  assert.match(a.entry.querySelector('[data-entry-proposed-time]').textContent,/13:00/);
+  assert.equal(a.queued.length,count);assert.equal(JSON.stringify(a.queued.at(-1)),before);assert.equal(a.retries(),0);
+ }
+});
+
+test('Entry mockups disappear on ordinary questions and demo viewing is not an answer',()=>{
+ const a=app({definition:entryFixture});a.start();
+ a.entry.querySelector('[data-entry-add]').onclick();a.entry.querySelector('[data-entry-save]').onclick();
+ a.element('#next').onclick();assert.equal(a.querySelector('[data-entry-mockup]'),null);
+ assert.doesNotMatch(a.element('#app').innerHTML,/entry-mockup|data-entry-example-field/);
+ assert.deepEqual(a.queued.at(-1).answers,{});assert.equal(a.queued.at(-1).completed,false);assert.equal(a.element('#finish').disabled,true);
+ a.element('#back').onclick();assert.ok(a.querySelector('[data-entry-mockup]'));
+ assert.equal(a.entry.querySelectorAll('[data-entry-panel]').find(node=>node.dataset.entryPanel==='plans').hidden,false);
+ assert.equal(a.entry.querySelector('[data-entry-status]').textContent,'');
 });
 
 test('Finish shows waiting or retry until remote acknowledgement, then permits closing',()=>{

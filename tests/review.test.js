@@ -99,6 +99,17 @@ test('Review treats plan-preview feedback as preferences and preserves opting ou
  const phoneAnswer=sample(schema);phoneAnswer.data.answers.phone_feature={values:['overview'],text:'',skipped:false};assert.throws(()=>parseParticipantRecord(phoneAnswer.data,phoneAnswer.path));
 });
 
+test('Review reports suggestions as the selected plan-source preference and preserves the unmodified evidence',()=>{
+ const schema=blocks.find(definition=>definition.id==='plans-entry-choice-v1'),[source,entry]=schema.questions;
+ const record=sample(schema);record.data.answers[source.id].values=['suggestions'];record.data.answers[entry.id].values=['example'];
+ const original=structuredClone(record.data),result=reviewCandidate(record);
+ assert.equal(result.answers.length,2);assert.deepEqual(result.answers[0].selected,[{id:'suggestions',label:source.options.find(option=>option[0]==='suggestions')[1]}]);assert.equal(result.answers[0].text,'');assert.equal(result.answers[1].selected[0].id,'example');assert.deepEqual(record.data,original);
+ const notNow=sample(schema);for(const answer of Object.values(notNow.data.answers))answer.values=['not_now'];assert.deepEqual(reviewCandidate(notNow).answers.map(answer=>answer.selected[0].id),['not_now','not_now']);
+ const skipped=sample(schema);for(const answer of Object.values(skipped.data.answers)){answer.values=[];answer.skipped=true;}assert.ok(reviewCandidate(skipped).answers.every(answer=>answer.skipped));
+ for(const question of schema.questions){const multiple=sample(schema);multiple.data.answers[question.id].values=question.options.slice(0,2).map(option=>option[0]);assert.throws(()=>parseParticipantRecord(multiple.data,multiple.path),/invalid_choices/);}
+ const mixed=sample(schema);mixed.data.answers.plan_contents={values:['study'],text:'',skipped:false};assert.throws(()=>parseParticipantRecord(mixed.data,mixed.path));
+});
+
 test('Baseline never consumes block 17 or future blocks and ignores unfinished legacy records',()=>{
  const old=sample(sixteenthBlock),current=sample(),unfinished=sample(blocks[0]);unfinished.data.completed=false;
  assert.deepEqual(legacyBaselineEntries([old,current,unfinished]),{[old.path]:old.sha});
