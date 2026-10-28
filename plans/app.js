@@ -40,7 +40,8 @@ export class PlansStore{
   #initData;#fetch;#onChange;#timeoutMs;#trash=new Map();
   constructor({initData='',telegramLaunchDetected=false,fetchImpl=globalThis.fetch,onChange=()=>{},timeoutMs=20000}={}){
     this.#initData=typeof initData==='string'?initData.trim():'';
-    this.#fetch=fetchImpl;this.#onChange=onChange;this.#timeoutMs=timeoutMs;this.demo=!this.#initData&&!telegramLaunchDetected;
+    // Native browser fetch requires its global receiver, not this PlansStore.
+    this.#fetch=(...args)=>Reflect.apply(fetchImpl,globalThis,args);this.#onChange=onChange;this.#timeoutMs=timeoutMs;this.demo=!this.#initData&&!telegramLaunchDetected;
     this.mode=this.demo?'demo':null;this.revision=0;this.consent=this.demo;this.events=[];this.timeZone=TIME_ZONE;
     this.pending=false;this.operation='';this.hasSnapshot=this.demo;this.needsRefresh=false;this.error=null;this.lastAction=null;
   }
@@ -67,13 +68,17 @@ export class PlansStore{
   async load(){
     if(this.pending)throw new PlansError('busy');
     if(this.demo){this.#emit();return this;}
-    if(!this.#initData){this.error=new PlansError('telegram');this.needsRefresh=true;this.#emit();throw this.error;}
+    if(!this.#initData){this.error=new PlansError('telegram');this.error.stage='initial_load';this.needsRefresh=true;this.#emit();throw this.error;}
     this.pending=true;this.operation='load';this.error=null;this.#emit();
     try{
       const snapshot=await this.#request('GET','/plans');
       if(this.hasSnapshot&&snapshot.revision<this.revision)throw new PlansError('response');
       this.#accept(snapshot);return this;
-    }catch(error){this.error=error instanceof PlansError?error:new PlansError('network');this.needsRefresh=true;throw this.error;}
+    }catch(error){
+      this.error=error instanceof PlansError?error:new PlansError('network');
+      this.error.stage=this.hasSnapshot?'refresh':'initial_load';
+      this.needsRefresh=true;throw this.error;
+    }
     finally{this.pending=false;this.operation='';this.#emit();}
   }
   async #mutate(method,path,body,effect,operation,demoChange){
@@ -91,6 +96,7 @@ export class PlansStore{
       this.lastAction=operation;return this;
     }catch(error){
       this.error=error instanceof PlansError?error:new PlansError('network');
+      this.error.stage=operation;
       if(!this.demo)this.needsRefresh=true;
       throw this.error;
     }finally{this.pending=false;this.operation='';this.#emit();}
@@ -119,6 +125,21 @@ export class PlansStore{
 const t=(lang,ru,en)=>lang==='en'?en:ru;
 const icons={clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>',refresh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1"/></svg>',calendar:'<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="7" width="22" height="21" rx="4"/><path d="M10 4v7M22 4v7M5 14h22M11 20h4M18 20h3"/></svg>'};
 export function errorMessage(error,lang){
+  if(['initial_load','refresh'].includes(error?.stage)){
+    const initial=error.stage==='initial_load';
+    const loadMessages={
+      network:initial?
+        ['Не удалось загрузить список. Проверь подключение к интернету и попробуй «Обновить список». Если не поможет, закрой страницу и открой её снова через Compass.','The list could not be loaded. Check your internet connection and try “Refresh list”. If that does not help, close this page and open it again through Compass.']:
+        ['Не удалось обновить список. Показана последняя загруженная версия. Проверь подключение к интернету и попробуй обновить ещё раз.','The list could not be refreshed. The last loaded version is still shown. Check your internet connection and try refreshing again.'],
+      storage:['Хранилище планов сейчас недоступно. Попробуй обновить список немного позже.','Plans storage is not available right now. Try refreshing the list a little later.'],
+      response:['Ответ сервера получен, но прочитать список не удалось. Попробуй обновить список.','The server replied, but the list could not be read. Try refreshing the list.'],
+      request:['Не удалось загрузить список с сервера. Попробуй обновить его немного позже.','The list could not be loaded from the server. Try refreshing it a little later.'],
+      conflict:['Не удалось загрузить актуальную версию списка. Попробуй обновить список.','The latest version of the list could not be loaded. Try refreshing the list.'],
+      rate:['Сейчас слишком много запросов. Подожди немного и попробуй обновить список.','Too many requests right now. Wait a little, then try refreshing the list.'],
+      too_large:['Запрос списка не удалось выполнить. Попробуй обновить список или открыть его снова через Compass.','The list request could not be completed. Try refreshing the list or opening it again through Compass.']
+    };
+    if(loadMessages[error.code])return t(lang,...loadMessages[error.code]);
+  }
   const messages={
     telegram:['Не удалось открыть список через Telegram. Закрой эту страницу и снова открой «Мои планы» через Compass.','The list could not be opened through Telegram. Close this page and open “My plans” again through Compass.'],
     auth:['Подключение Telegram истекло или не подтверждено. Закрой эту страницу и открой «Мои планы» снова через Compass.','Your Telegram connection has expired or could not be checked. Close this page and open “My plans” again through Compass.'],
@@ -136,6 +157,11 @@ export function errorMessage(error,lang){
     missing:['Этого плана больше нет в загруженном списке. Проверь список; текст формы остаётся здесь.','This plan is no longer in the loaded list. Check the list; your form stays here.']
   };
   return t(lang,...(messages[error?.code]||messages.request));
+}
+export function safeErrorDetails(error){
+  const stages=['initial_load','refresh','save','delete','restore'];
+  const codes=['telegram','auth','forbidden','conflict','storage','network','response','refresh','request','rate','too_large','limit','consent','missing','validation','busy'];
+  return {stage:stages.includes(error?.stage)?error.stage:'unknown',code:codes.includes(error?.code)?error.code:'unknown',httpStatus:Number.isInteger(error?.status)&&error.status>=100&&error.status<=599?error.status:0};
 }
 const disabled=flag=>flag?' disabled':'';
 const escape=escapeHTML;
@@ -183,7 +209,8 @@ export function renderPlans(store,ui){
   else if(store.needsRefresh&&store.hasSnapshot)sync=t(lang,'Показана ранее загруженная копия. Сначала обнови список.','This is the previously loaded copy. Refresh the list first.');
   else if(store.hasSnapshot)sync=store.demo?t(lang,'Пробные записи остаются только в памяти этой вкладки.','Try-out items stay only in this tab’s memory.'):t(lang,'Записи на экране загружены из закрытого хранилища.','The items on this screen were loaded from private storage.');
   const error=store.error||ui.error;
-  const notice=error?`<div class="notice error" role="alert"><p>${escape(errorMessage(error,lang))}</p></div>`:ui.message?`<div class="notice success"><p>${escape(ui.message)}</p></div>`:'';
+  const diagnostics=error?safeErrorDetails(error):null;
+  const notice=error?`<div class="notice error" role="alert" data-error-stage="${diagnostics.stage}" data-error-code="${diagnostics.code}" data-http-status="${diagnostics.httpStatus}"><p>${escape(errorMessage(error,lang))}</p></div>`:ui.message?`<div class="notice success"><p>${escape(ui.message)}</p></div>`:'';
   const refreshButton=`<button class="refresh" id="refresh-list" type="button" title="${t(lang,'Обновить список','Refresh list')}" aria-label="${t(lang,'Обновить список','Refresh list')}"${disabled(store.pending)}>${icons.refresh}</button>`;
   const undo=ui.undoEvent?`<div class="notice success undo"><p>${t(lang,'План удалён из списка.','The plan was removed from the list.')}</p><button type="button" id="undo-delete"${disabled(store.pending||store.needsRefresh)}>${t(lang,'Вернуть','Undo')}</button></div>`:'';
   return `<div id="page-content"${ui.deleteEvent?' inert':''}><header><div class="brand"><span class="brand-mark" aria-hidden="true">↗</span><span>Compass</span></div><div class="languages" role="group" aria-label="${t(lang,'Язык','Language')}"><button type="button" data-lang="ru" aria-pressed="${lang==='ru'}"${disabled(store.pending)}>РУС</button><button type="button" data-lang="en" aria-pressed="${lang==='en'}"${disabled(store.pending)}>ENG</button></div></header><main><p class="eyebrow">${t(lang,'Твой список','Your own list')}</p><h1>${t(lang,'Мои планы','My plans')}</h1><p class="lead">${t(lang,'Ближайшие события и планы в одном месте.','Your upcoming events and plans in one place.')}</p><div class="timezone">${icons.clock}${t(lang,'Время по Минску','Times are in Minsk time')}</div>${store.demo?`<aside class="mode-note demo"><strong>${t(lang,'Локальный пробный режим','Local try-out mode')}</strong><p>${t(lang,'Данные только в памяти этой вкладки. Они исчезнут при обновлении или закрытии страницы и не отправятся на сервер.','Data stays only in this tab’s memory. Reloading or closing the page clears it. Nothing is sent to the server.')}</p></aside>`:store.mode==='test'?`<aside class="mode-note test"><strong>${t(lang,'Тестовый режим · отдельный список','Test mode · a separate list')}</strong><p>${t(lang,'Эти записи сохраняются отдельно от списка Артёма.','These items are saved separately from Artsiom’s list.')}</p></aside>`:''}<div class="toolbar">${ui.formOpen?`<span class="small">${t(lang,'Форма не сохраняется автоматически.','The form is not saved automatically.')}</span>`:`<button class="primary" id="add-plan" type="button"${disabled(store.pending||store.needsRefresh||!store.hasSnapshot)}><span class="plus" aria-hidden="true">+</span>${t(lang,'Добавить план','Add a plan')}</button>`}${refreshButton}</div>${notice}<p class="sync-state${store.pending?' busy':''}" role="status">${escape(sync)}</p>${undo}${ui.formOpen?renderForm(store,ui):renderList(store,ui)}${privacyHTML(store,lang)}<p class="footer-note">${t(lang,'Напоминания об этих событиях не отправляются.','No reminders are sent for these events.')}</p></main></div>${renderDelete(store,ui)}`;

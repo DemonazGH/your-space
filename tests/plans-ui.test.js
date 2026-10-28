@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {PlansStore,PlansError,escapeHTML,validateEvent,readSnapshot,minskToday,renderPlans,hasTelegramLaunch} from '../plans/app.js';
+import {PlansStore,PlansError,escapeHTML,validateEvent,readSnapshot,minskToday,renderPlans,hasTelegramLaunch,errorMessage,safeErrorDetails} from '../plans/app.js';
 
 const draft={title:'Английский',date:'2026-11-01',time:'17:00'};
 const event={id:'event-one',...draft,createdAt:'2026-10-28T10:00:00.000Z',updatedAt:'2026-10-28T10:00:00.000Z'};
@@ -58,6 +58,46 @@ test('plans: Telegram launch without SDK data is blocked instead of silently ent
   assert.ok(!renderPlans(store,ui()).includes('Локальный пробный режим'));
 });
 
+test('plans: initial GET failure describes loading, never a possibly saved change',async()=>{
+  let calls=0;const store=new PlansStore({initData:'secret-auth-value',fetchImpl:async()=>{calls++;throw new Error('network');}});
+  await assert.rejects(store.load(),error=>error.code==='network'&&error.stage==='initial_load');
+  assert.equal(calls,1);assert.equal(store.hasSnapshot,false);assert.equal(store.demo,false);assert.equal(store.needsRefresh,true);
+  assert.match(errorMessage(store.error,'ru'),/Не удалось загрузить список/);
+  assert.match(errorMessage(store.error,'en'),/The list could not be loaded/);
+  for(const lang of ['ru','en']){
+    const html=renderPlans(store,ui({lang}));
+    assert.ok(!html.includes('Изменение могло сохраниться'));assert.ok(!html.includes('The change may have been saved'));
+    assert.ok(!html.includes('Поля формы'));assert.ok(!html.includes('secret-auth-value'));
+    assert.match(html,/data-error-stage="initial_load" data-error-code="network" data-http-status="0"/);
+  }
+});
+
+test('plans: refresh failure describes stale loaded list and keeps writes blocked',async()=>{
+  let calls=0;const store=new PlansStore({initData:'auth',fetchImpl:async()=>{calls++;if(calls===1)return response(snapshot(1,[event],true));throw new Error('network');}});
+  await store.load();await assert.rejects(store.load(),error=>error.stage==='refresh');
+  assert.equal(store.events[0].id,event.id);assert.equal(store.needsRefresh,true);
+  assert.match(errorMessage(store.error,'ru'),/Не удалось обновить список/);
+  assert.match(errorMessage(store.error,'en'),/last loaded version/);
+  assert.ok(!errorMessage(store.error,'ru').includes('Изменение могло сохраниться'));
+  await assert.rejects(store.save(draft),error=>error.code==='refresh');assert.equal(calls,2);
+});
+
+test('plans: initial storage and response failures do not mention a previous write or a form',async()=>{
+  for(const fetchImpl of [async()=>({ok:false,status:503}),async()=>response({not:'a snapshot'})]){
+    const store=new PlansStore({initData:'auth',fetchImpl});await assert.rejects(store.load());
+    assert.equal(store.error.stage,'initial_load');
+    for(const lang of ['ru','en']){
+      const text=errorMessage(store.error,lang);
+      assert.ok(!text.includes('последней операции'));assert.ok(!text.includes('Поля формы'));assert.ok(!text.includes('Your form'));assert.ok(!text.includes('last action'));
+    }
+  }
+});
+
+test('plans: diagnostic details contain only bounded stage, code and HTTP status',()=>{
+  assert.deepEqual(safeErrorDetails({stage:'save',code:'storage',status:503,initData:'secret',id:'private-id',url:'private-url'}),{stage:'save',code:'storage',httpStatus:503});
+  assert.deepEqual(safeErrorDetails({stage:'private-id',code:'secret',status:'private'}),{stage:'unknown',code:'unknown',httpStatus:0});
+});
+
 test('plans: first server write needs explicit consent; auth travels only in header; acknowledge full matching snapshot',async()=>{
   const calls=[];const store=new PlansStore({initData:'opaque-auth-value',fetchImpl:async(url,options)=>{
     calls.push({url,options});return response(options.method==='GET'?snapshot():snapshot(1,[event],true));
@@ -70,6 +110,18 @@ test('plans: first server write needs explicit consent; auth travels only in hea
   assert.equal(calls[1].options.headers.Authorization,'tma opaque-auth-value');assert.ok(!calls[1].url.includes('opaque-auth-value'));
   assert.deepEqual(JSON.parse(calls[1].options.body),{revision:0,consent:true,...draft});
   assert.ok(!renderPlans(store,ui()).includes('opaque-auth-value'));
+});
+
+test('plans: fetch receives globalThis for both loading and mutation, never the PlansStore receiver',async()=>{
+  const calls=[];
+  function strictReceiverFetch(url,options){
+    assert.equal(this,globalThis,'native browser fetch must run with its global receiver');
+    calls.push(options.method);
+    return Promise.resolve(response(options.method==='GET'?snapshot():snapshot(1,[event],true)));
+  }
+  const store=new PlansStore({initData:'auth',fetchImpl:strictReceiverFetch});
+  await store.load();await store.save(draft,{consent:true});
+  assert.deepEqual(calls,['GET','POST']);assert.equal(store.events[0].id,event.id);assert.equal(store.lastAction,'save');
 });
 
 test('plans: failed save retains list and draft; no retry; refresh is required before another write',async()=>{
@@ -94,7 +146,8 @@ test('plans: network error has uncertain result, not a false save; refresh can r
   let posts=0;const store=new PlansStore({initData:'auth',fetchImpl:async(url,options)=>{
     if(options.method==='GET')return response(posts?snapshot(1,[event],true):snapshot());posts++;throw new Error('connection lost after sending');
   }});
-  await store.load();await assert.rejects(store.save(draft,{consent:true}),error=>error.code==='network');assert.equal(store.events.length,0);
+  await store.load();await assert.rejects(store.save(draft,{consent:true}),error=>error.code==='network'&&error.stage==='save');assert.equal(store.events.length,0);
+  assert.match(errorMessage(store.error,'ru'),/Изменение могло сохраниться/);assert.match(errorMessage(store.error,'en'),/The change may have been saved/);
   await store.load();assert.equal(posts,1);assert.equal(store.events.length,1);
   const html=renderPlans(store,ui({formOpen:true,uncertainSave:true,consentChecked:true}));
   assert.ok(html.includes('Такая запись есть в обновлённом списке.'));assert.match(html,/id="save-plan" disabled/);

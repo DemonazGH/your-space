@@ -1,5 +1,5 @@
 import {block} from '../questions.js';
-export const plansUrl='https://demonazgh.github.io/your-space/plans/?v=plans-v1';
+export const plansUrl='https://demonazgh.github.io/your-space/plans/?v=plans-v2';
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export function matches(a,b){if(typeof a!=='string'||typeof b!=='string'||!b||a.length!==b.length)return false;let n=0;for(let i=0;i<a.length;i++)n|=a.charCodeAt(i)^b.charCodeAt(i);return n===0;}
 export async function telegram(env,method,body={}){
