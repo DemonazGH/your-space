@@ -28,6 +28,18 @@ Cloudflare processes the submitted answers and GitHub stores them. The welcome s
 
 Downloads contain plain-text answers. The participant can review answers and download a copy. There is no dashboard or automatic next-set generation yet. Never send answers to a public repository or Issues. The local demo never transmits answers. Proposed next questions are discussed with Dzmitry before publication.
 
+## My plans / Мои планы
+
+`plans/` is a separate bilingual application for creating, editing and deleting personal events through title, date and time fields. Dates and times are shown as Europe/Minsk wall time. It does not create questionnaire answers or event reminders. The questionnaire and its published historical schemas are unchanged.
+
+Open it through the Compass `Мои планы` menu button or `/plans` command. Telegram Mini App launch data is verified on the Worker for each request using the official bot-token HMAC and a bounded authentication age. Only the registered participant can access the participant event store. The registered administrator has a separate test store; the questionnaire bearer credentials never grant event access. Anonymous browser visits provide an explicitly labelled in-memory preview. An invalid or expired Telegram session never falls back to that preview.
+
+Before the first online write, the application asks for separate consent and explains that Cloudflare processes events and GitHub stores them privately in Dzmitry's repository. As repository owner, Dzmitry can read that data. Event data and Telegram launch credentials are not stored in browser localStorage or sessionStorage. The API returns no registration IDs or raw credentials, and all responses prohibit caching.
+
+`GET /plans` returns the authenticated account's list. `POST /plans/events`, `PATCH /plans/events/:id`, `DELETE /plans/events/:id` and `POST /plans/events/:id/restore` mutate it. Every write requires the latest list revision and explicit consent; GitHub SHA conflicts fail without overwriting another change. Network failures do not claim a successful save. The client does not automatically retry a mutation with uncertain results.
+
+Private event records use `plans/participant/events.json` or `plans/test/events.json`, outside the participant-answer monitor's paths. Delete removes a record from the visible list and offers undo. A tombstone and prior Git history can remain in private storage; the application explains this and directs full-erasure requests to Dzmitry. No automatic Git history deletion is performed. The public deployment explicitly allowlists the three application assets in addition to the five questionnaire assets.
+
 ## Next-set review
 
 Review only consented participant answers from the private repository or an explicitly shared export. Separate quoted observations, competing explanations, unknowns and follow-up questions. Never infer a diagnosis, motivation or symptom from a skipped question or single choice. Respect a request not to continue. Give the participant a way to correct summaries. Update questions only as a new block with a new storage key and stable choice IDs, preserving the previous export schema.

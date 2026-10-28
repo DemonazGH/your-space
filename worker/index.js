@@ -1,5 +1,6 @@
 import {notifyBlock,thankCompletedBlock,allQuestionsHandled} from './notifications.js';
 import {handleTelegram,matches} from './telegram.js';
+import {handlePlans} from './plans.js';
 import {blocks} from '../questions.js';
 
 export async function tokenHash(value) {
@@ -38,6 +39,8 @@ export default {
   ctx.waitUntil(notifyBlock(env,'evening',new Date(controller.scheduledTime)));
  },
  async fetch(request,env,ctx) {
+  const pathname=new URL(request.url).pathname;
+  if(pathname==='/plans'||pathname.startsWith('/plans/'))return handlePlans(request,env);
   if(new URL(request.url).pathname==='/telegram/notify') {
    if(request.method!=='POST'||!env.TELEGRAM_NOTIFY_KEY||!matches(request.headers.get('Authorization'),`Bearer ${env.TELEGRAM_NOTIFY_KEY}`))return Response.json({error:'unauthorized'},{status:401});
    try {
