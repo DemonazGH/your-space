@@ -211,7 +211,7 @@ test('Viewing a plan preview does not fill answers and ordinary questions do not
  assert.equal(a.queued.at(-1).screen,'review');assert.deepEqual(a.queued.at(-1).answers,{});assert.equal(a.element('#finish').disabled,true);
 });
 
-const entryFixture={...block,id:'entry-fixture-v1',questions:[
+const entryFixture={...blocks.find(definition=>definition.id==='plans-entry-choice-v1'),id:'entry-fixture-v1',questions:[
  {id:'entry_preference',type:'single',entryMockup:true,title:['Как тебе удобнее?','Which way suits you?'],options:[['yes','Подходит','It suits me']]},
  {id:'entry_plain',type:'single',title:['Обычный вопрос','A plain question'],options:[['yes','Да','Yes']]}
 ]};
@@ -271,6 +271,22 @@ test('Entry mockups disappear on ordinary questions and demo viewing is not an a
  a.element('#back').onclick();assert.ok(a.querySelector('[data-entry-mockup]'));
  assert.equal(a.entry.querySelectorAll('[data-entry-panel]').find(node=>node.dataset.entryPanel==='plans').hidden,false);
  assert.equal(a.entry.querySelector('[data-entry-status]').textContent,'');
+});
+
+test('First-use questions have no old entry mockup and not trying remains a complete answer requiring explicit finish',()=>{
+ const previous=blocks.find(definition=>definition.id==='plans-entry-choice-v1'),historical=app({definition:previous});historical.start();
+ assert.ok(historical.querySelector('[data-entry-mockup]'));assert.deepEqual(historical.queued.at(-1).answers,{});
+ assert.equal(block.id,'plans-first-use-v1');
+ const a=app();a.start();
+ for(const [index,question] of block.questions.entries()){
+  assert.equal(a.querySelector('[data-entry-mockup]'),null);assert.doesNotMatch(a.element('#app').innerHTML,/class="plan-preview"|data-entry-example-field/);
+  const input=a.inputs.find(item=>item.value==='not_tried');input.checked=true;input.onchange();
+  assert.deepEqual(a.queued.at(-1).answers[question.id],{values:['not_tried'],text:'',skipped:false});
+  if(index<block.questions.length-1)a.element('#next').onclick();
+ }
+ assert.equal(a.queued.at(-1).completed,false);assert.equal(a.element('#finish').disabled,false);
+ a.element('#finish').onclick();assert.equal(a.queued.at(-1).completed,true);assert.equal(a.queued.at(-1).screen,'done');
+ assert.ok(Object.values(a.queued.at(-1).answers).every(answer=>answer.values[0]==='not_tried'&&answer.text===''));
 });
 
 test('Finish shows waiting or retry until remote acknowledgement, then permits closing',()=>{

@@ -110,6 +110,41 @@ test('Review reports suggestions as the selected plan-source preference and pres
  const mixed=sample(schema);mixed.data.answers.plan_contents={values:['study'],text:'',skipped:false};assert.throws(()=>parseParticipantRecord(mixed.data,mixed.path));
 });
 
+test('Review maps first-use reports faithfully, including not trying, while preserving the previous interface preference evidence',()=>{
+ const schema=blocks.find(definition=>definition.id==='plans-first-use-v1'),record=sample(schema);record.data.language='en';
+ for(const answer of Object.values(record.data.answers))answer.values=['not_tried'];
+ const original=structuredClone(record.data),reviewed=reviewCandidate(record);
+ assert.equal(reviewed.answers.length,2);assert.deepEqual(record.data,original);
+ for(const [index,question] of schema.questions.entries()){
+  assert.equal(reviewed.answers[index].questionId,question.id);
+  assert.deepEqual(reviewed.answers[index].selected,[{id:'not_tried',label:question.options.find(option=>option[0]==='not_tried')[1]}]);
+  assert.equal(reviewed.answers[index].text,'');assert.equal(reviewed.answers[index].skipped,false);
+ }
+ const previous=blocks.find(definition=>definition.id==='plans-entry-choice-v1'),entry=sample(previous);
+ entry.data.answers.plan_source.values=['self'];entry.data.answers.plan_entry.values=['fields'];
+ const old=structuredClone(entry.data),oldReview=reviewCandidate(entry);
+ assert.deepEqual(oldReview.answers.map(answer=>answer.selected[0].id),['self','fields']);assert.deepEqual(entry.data,old);
+ assert.equal(oldReview.answers[0].selected[0].label,'Сам добавляю планы, которые выбираю');
+ assert.equal(oldReview.answers[1].selected[0].label,'Нажать «Добавить план» и заполнить отдельные поля: название, дата, время');
+});
+
+test('First-use review ignores unfinished drafts, preserves explicit skips and rejects cross-block records',()=>{
+ const schema=blocks.find(definition=>definition.id==='plans-first-use-v1'),record=sample(schema);
+ for(const answer of Object.values(record.data.answers))answer.values=['not_tried'];
+ assert.equal(reviewCandidate({...record,data:{...record.data,completed:false}}),null);
+ const missing=structuredClone(record);delete missing.data.answers.plan_experience;
+ assert.throws(()=>parseParticipantRecord(missing.data,missing.path),/incomplete_finish/);
+ missing.data.completed=false;assert.equal(reviewCandidate(missing),null);
+ const skipped=sample(schema);for(const answer of Object.values(skipped.data.answers)){answer.values=[];answer.skipped=true;}
+ assert.ok(reviewCandidate(skipped).answers.every(answer=>answer.skipped&&answer.selected.length===0&&answer.text===''));
+ const previous=blocks.find(definition=>definition.id==='plans-entry-choice-v1');
+ const changedIdentity=structuredClone(record);changedIdentity.data.blockId=previous.id;changedIdentity.path=`participant/${sessionId}/${previous.id}.json`;
+ assert.throws(()=>parseParticipantRecord(changedIdentity.data,changedIdentity.path),/invalid_answer/);
+ const oldWithNewIdentity=sample(previous);oldWithNewIdentity.data.blockId=schema.id;oldWithNewIdentity.path=`participant/${sessionId}/${schema.id}.json`;
+ assert.throws(()=>parseParticipantRecord(oldWithNewIdentity.data,oldWithNewIdentity.path),/invalid_answer/);
+ const mixed=sample(schema);mixed.data.answers.plan_entry={values:['fields'],text:'',skipped:false};assert.throws(()=>reviewCandidate(mixed),/invalid_answer/);
+});
+
 test('Baseline never consumes block 17 or future blocks and ignores unfinished legacy records',()=>{
  const old=sample(sixteenthBlock),current=sample(),unfinished=sample(blocks[0]);unfinished.data.completed=false;
  assert.deepEqual(legacyBaselineEntries([old,current,unfinished]),{[old.path]:old.sha});

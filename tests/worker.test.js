@@ -48,6 +48,10 @@ const entrySample=()=>({...sample(),blockId:'plans-entry-choice-v1',completed:tr
  plan_source:{values:['self'],text:'',skipped:false},
  plan_entry:{values:['fields'],text:'',skipped:false}
 }});
+const firstUseSample=()=>({...sample(),blockId:'plans-first-use-v1',completed:true,answers:{
+ plan_try:{values:['self'],text:'',skipped:false},
+ plan_experience:{values:['easy'],text:'',skipped:false}
+}});
 
 test('Published block 19 completion still validates without changing its saved answers',()=>{
  const data=schoolSample(),saved=validate(data);assert.equal(saved.blockId,'school-task-motivation-v1');assert.equal(saved.blockVersion,1);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,data.answers);
@@ -234,6 +238,43 @@ test('Block 27 choices, not-now, global refusals and skips finish without mandat
  }
  const skipped=entrySample();for(const answer of Object.values(skipped.answers)){answer.values=[];answer.skipped=true;}assert.equal(validate(skipped).completed,true);
  for(const question of schema.questions){const multiple=entrySample();multiple.answers[question.id].values=question.options.slice(0,2).map(option=>option[0]);assert.throws(()=>validate(multiple),/Invalid choice/);}
+});
+
+test('Block 28 preserves the published block 27 schema and rejects mixing preferences with first-use reports',()=>{
+ const entry=entrySample(),saved=validate(entry);assert.equal(saved.blockVersion,1);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,entry.answers);
+ const historical=blocks.find(schema=>schema.id==='plans-entry-choice-v1');
+ assert.deepEqual(historical.questions.map(question=>[question.id,question.type,question.entryMockup,question.options.map(option=>option[0])]),[
+  ['plan_source','single',true,['self','suggestions','both','not_now']],
+  ['plan_entry','single',true,['fields','line','example','not_now']]
+ ]);
+ const firstUse=firstUseSample();assert.equal(validate(firstUse).blockVersion,1);assert.deepEqual(validate(firstUse).answers,firstUse.answers);
+ assert.throws(()=>validate({...firstUse,blockId:entry.blockId}),/Invalid answer/);
+ assert.throws(()=>validate({...entry,blockId:firstUse.blockId}),/Invalid answer/);
+ const mixed=firstUseSample();mixed.answers.plan_source=entry.answers.plan_source;assert.throws(()=>validate(mixed),/Invalid answer/);
+});
+
+test('Block 28 accepts declared first-use choices, not trying, refusals and deliberate skips without written text',()=>{
+ const schema=blocks.find(definition=>definition.id==='plans-first-use-v1');
+ for(const question of schema.questions){
+  for(const [choice] of question.options){const data=firstUseSample();data.answers[question.id].values=[choice];assert.deepEqual(validate(data).answers,data.answers);}
+  const multiple=firstUseSample();multiple.answers[question.id].values=question.options.slice(0,2).map(option=>option[0]);assert.throws(()=>validate(multiple),/Invalid choice/);
+  const invalid=firstUseSample();invalid.answers[question.id].values=['not_a_first_use_choice'];assert.throws(()=>validate(invalid),/Invalid choice/);
+ }
+ for(const value of ['not_tried','other','unknown','private']){
+  const data=firstUseSample();for(const answer of Object.values(data.answers))answer.values=[value];
+  const saved=validate(data);assert.equal(saved.completed,true);assert.deepEqual(saved.answers,data.answers);assert.ok(Object.values(saved.answers).every(answer=>answer.text===''));
+ }
+ const skipped=firstUseSample();for(const answer of Object.values(skipped.answers)){answer.values=[];answer.skipped=true;}
+ assert.equal(validate(skipped).completed,true);assert.deepEqual(validate(skipped).answers,skipped.answers);
+});
+
+test('A complete first-use draft is not completed automatically and a missing answer cannot be explicitly finished',()=>{
+ const data=firstUseSample();for(const answer of Object.values(data.answers))answer.values=['not_tried'];
+ assert.equal(validate({...data,completed:false}).completed,false);
+ delete data.answers.plan_experience;assert.throws(()=>validate(data),/Incomplete finish/);
+ assert.equal(validate({...data,completed:false}).completed,false);
+ data.answers.plan_experience={values:[],text:' ',skipped:false};assert.throws(()=>validate(data),/Incomplete finish/);
+ data.answers.plan_experience={values:[],text:'',skipped:true};assert.equal(validate(data).completed,true);
 });
 test('Sixth block accepts practical experience and keeps older schemas separate',()=>{const data={...sample(),blockId:'hands-on-and-asking-v1',answers:{practical_task:{values:['settings'],text:'',skipped:false},asking_recently:{values:['not_asked'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'hands-on-and-asking-v1');assert.throws(()=>validate({...sample(),blockId:'hands-on-and-asking-v1'}));});
 test('Fifth block validates independently from earlier answers',()=>{const data={...sample(),blockId:'follow-up-examples-v1',answers:{tech_interest:{values:['devices'],text:'',skipped:false},repeat_result:{values:['forgot'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'follow-up-examples-v1');assert.throws(()=>validate({...sample(),blockId:'follow-up-examples-v1'}));});

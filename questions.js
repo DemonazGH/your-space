@@ -361,7 +361,7 @@ export const twentySixthBlock = {
  ]}
  ]
 };
-export const block = {
+export const twentySeventhBlock = {
  id:'plans-entry-choice-v1',version:1,requiresFinish:true,
  label:['Блок 27 · Как добавлять планы','Set 27 · Adding plans'],
  title:['Как планы появляются<br>в твоём списке','How plans could appear<br>in your list'],
@@ -381,4 +381,26 @@ export const block = {
  ]}
  ]
 };
-export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,twentyFifthBlock,twentySixthBlock,block];
+export const block = {
+ id:'plans-first-use-v1',version:1,requiresFinish:true,
+ label:['Блок 28 · Опыт с «Моими планами»','Set 28 · Your experience with “My plans”'],
+ title:['Как получилось<br>с «Моими планами»?','How did it go<br>with “My plans”?'],
+ intro:['Два вопроса о твоём опыте с «Моими планами». Если пока не пробовал, это тоже ответ. Сейчас ничего открывать или добавлять не нужно. Названия и другие личные детали планов писать не надо. Текст необязателен.','Two questions about your experience with “My plans”. If you have not tried it yet, you can say so. You do not need to open anything or add a plan now. You do not need to give plan titles or other personal details. Writing is optional.'],
+ questions:[
+ {id:'plan_try',type:'single',title:['Пробовал ли ты добавить и сохранить свой план в «Моих планах»?','Have you tried adding and saving your own plan in “My plans”?'],hint:['Речь о самом списке «Мои планы». Выбери один ближайший ответ о том, как было у тебя. Если пока не пользовался списком, есть вариант «Пока не пробовал».','Think about using the “My plans” list itself. Choose the closest answer about your experience. If you have not used the list yet, you can choose “I have not tried it yet”.'],options:[
+ ['self','Да, добавил и сохранил сам','Yes, I added and saved a plan myself'],
+ ['help','Да, добавил и сохранил с помощью','Yes, I added and saved a plan with help'],
+ ['started','Начал добавлять, но пока не закончил','I started adding a plan but have not finished yet'],
+ ['not_tried','Пока не пробовал','I have not tried it yet']
+ ]},
+ {id:'plan_experience',type:'single',title:['Что лучше описывает этот опыт?','What best describes that experience?'],hint:['Выбери один ближайший ответ. Можно оценить и незавершённую попытку. Если пока не пробовал, есть соответствующий вариант.','Choose the closest answer. You can also describe an attempt you have not finished. If you have not tried it yet, there is an answer for that.'],options:[
+ ['easy','Добавлять было просто','Adding a plan was easy'],
+ ['figured_out','Сначала пришлось разобраться, потом получилось','I had to work out how to do it first, then it worked'],
+ ['error','Что-то не сработало или появилась ошибка','Something did not work, or an error appeared'],
+ ['inconvenient','Было понятно, что делать, но способ мне неудобен','I knew what to do, but this way did not suit me'],
+ ['unfinished','Начал, но пока не могу оценить','I started, but cannot say how it went yet'],
+ ['not_tried','Пока не пробовал','I have not tried it yet']
+ ]}
+ ]
+};
+export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,twentyFifthBlock,twentySixthBlock,twentySeventhBlock,block];
