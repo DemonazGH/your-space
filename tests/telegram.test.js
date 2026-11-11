@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {handleTelegram,plansUrl} from '../worker/telegram.js';
+import {handleTelegram,plansUrl,recipeUrl} from '../worker/telegram.js';
 import {block} from '../questions.js';
 const env={TELEGRAM_WEBHOOK_SECRET:'hook',TELEGRAM_SETUP_KEY:'setup',TELEGRAM_ADMIN_INVITE:'invite',GITHUB_TOKEN:'fake',DATA_REPO:'owner/private',TELEGRAM_BOT_TOKEN:'fake'};
 const req=(id,text,secret='hook',type='private')=>new Request('https://host/telegram/webhook',{method:'POST',headers:{'X-Telegram-Bot-Api-Secret-Token':secret},body:JSON.stringify({update_id:id,message:{chat:{id:123,type},from:{id:123},text}})});
@@ -47,7 +47,7 @@ test('Telegram guide versions the page while keeping role-specific access only i
  }finally{globalThis.fetch=original;}
 });
 
-test('Plans open as a Telegram Mini App without answer credentials and remain role-bound',async()=>{
+test('Plans and the recipe open as Telegram Mini Apps without answer credentials',async()=>{
  const original=globalThis.fetch;
  try{
   for(const role of ['admin','participant']){
@@ -62,11 +62,14 @@ test('Plans open as a Telegram Mini App without answer credentials and remain ro
    const button=sent[0].reply_markup.inline_keyboard[0][0];assert.equal(button.web_app.url,plansUrl);assert.equal(button.url,undefined);
    const link=new URL(button.web_app.url);assert.equal(link.pathname,'/your-space/plans/');assert.equal(link.hash,'');assert.equal(link.searchParams.has('access'),false);
    assert.match(sent[0].text,role==='admin'?/тестовый режим/:/перед первым сохранением/i);
+   assert.equal((await handleTelegram(req(2,'/recipe'),env)).status,200);
+   assert.deepEqual(sent[1].reply_markup.inline_keyboard,[[{text:'Открыть рецепт',web_app:{url:recipeUrl}}]]);
+   assert.equal(new URL(recipeUrl).pathname,'/your-space/recipe/');
   }
  }finally{globalThis.fetch=original;}
 });
 
-test('Setup registers the plans command and account-specific Mini App menu without sending messages',async()=>{
+test('Setup registers commands and callbacks without sending messages',async()=>{
  const original=globalThis.fetch,calls=[];
  globalThis.fetch=async(url,options={})=>{
   if(url.includes('api.telegram.org')){
@@ -78,7 +81,10 @@ test('Setup registers the plans command and account-specific Mini App menu witho
  };
  try{
   const response=await handleTelegram(new Request('https://host/telegram/setup',{method:'POST',headers:{Authorization:'Bearer setup'}}),env);
-  assert.equal(response.status,200);assert.ok(calls.find(call=>call.method==='setMyCommands').body.commands.some(command=>command.command==='plans'));
+  assert.equal(response.status,200);
+  const commands=calls.find(call=>call.method==='setMyCommands').body.commands.map(({command})=>command);
+  assert.ok(commands.includes('plans'));assert.ok(commands.includes('recipe'));
+  assert.deepEqual(calls.find(call=>call.method==='setWebhook').body.allowed_updates,['message','callback_query']);
   const menus=calls.filter(call=>call.method==='setChatMenuButton');assert.deepEqual(menus.map(call=>call.body.chat_id),[123,456]);
   for(const {body} of menus)assert.deepEqual(body.menu_button,{type:'web_app',text:'Мои планы',web_app:{url:plansUrl}});
   assert.equal(calls.some(call=>call.method==='sendMessage'),false);

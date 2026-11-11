@@ -4,7 +4,7 @@
   "main": "index.js",
   "compatibility_date": "2026-09-01",
   "workers_dev": true,
-  "triggers": {"crons": ["0 18 * * *"]},
+  "triggers": {"crons": ["0 18 * * *", "20 4 * * MON-FRI", "0 19 * * *", "0 20 * * *"]},
   "observability": { "enabled": false },
   "vars": {
     "ALLOWED_ORIGIN": "https://demonazgh.github.io",

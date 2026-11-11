@@ -1,5 +1,7 @@
 import {block} from '../questions.js';
+import {handlePersonalReminderCallback} from './personal-reminders.js';
 export const plansUrl='https://demonazgh.github.io/your-space/plans/?v=plans-v2';
+export const recipeUrl='https://demonazgh.github.io/your-space/recipe/';
 const json=(body,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}});
 export function matches(a,b){if(typeof a!=='string'||typeof b!=='string'||!b||a.length!==b.length)return false;let n=0;for(let i=0;i<a.length;i++)n|=a.charCodeAt(i)^b.charCodeAt(i);return n===0;}
 export async function telegram(env,method,body={}){
@@ -21,8 +23,8 @@ export async function handleTelegram(request,env){
   if(!matches(request.headers.get('Authorization'),`Bearer ${env.TELEGRAM_SETUP_KEY||''}`)||!env.TELEGRAM_SETUP_KEY)return json({error:'unauthorized'},401);
   try{
    const me=await telegram(env,'getMe');if(me.username!=='ArtsiomCompassBot')return json({error:'unexpected_bot'},409);
-   await telegram(env,'setWebhook',{url:'https://personal-guide-api.your-space.workers.dev/telegram/webhook',secret_token:env.TELEGRAM_WEBHOOK_SECRET,max_connections:1,allowed_updates:['message']});
-   await telegram(env,'setMyCommands',{commands:[{command:'start',description:'Начать / Start'},{command:'guide',description:'Открыть путеводитель'},{command:'plans',description:'Мои планы / My plans'},{command:'status',description:'Статус подключения'},{command:'stop',description:'Отключить уведомления'},{command:'resume',description:'Включить уведомления'},{command:'help',description:'Помощь'}]});
+   await telegram(env,'setWebhook',{url:'https://personal-guide-api.your-space.workers.dev/telegram/webhook',secret_token:env.TELEGRAM_WEBHOOK_SECRET,max_connections:1,allowed_updates:['message','callback_query']});
+   await telegram(env,'setMyCommands',{commands:[{command:'start',description:'Начать / Start'},{command:'guide',description:'Открыть путеводитель'},{command:'plans',description:'Мои планы / My plans'},{command:'recipe',description:'Варёные яйца с таймером'},{command:'status',description:'Статус подключения'},{command:'stop',description:'Отключить уведомления'},{command:'resume',description:'Включить уведомления'},{command:'help',description:'Помощь'}]});
    for(const role of ['admin','participant']){
     const registration=await state(env,role);
     if(registration.value?.chatId)await telegram(env,'setChatMenuButton',{chat_id:registration.value.chatId,menu_button:{type:'web_app',text:'Мои планы',web_app:{url:plansUrl}}});
@@ -33,8 +35,13 @@ export async function handleTelegram(request,env){
  if(path!=='/telegram/webhook')return json({error:'not_found'},404);
  if(!matches(request.headers.get('X-Telegram-Bot-Api-Secret-Token'),env.TELEGRAM_WEBHOOK_SECRET))return json({error:'unauthorized'},401);
  let update;try{const raw=await request.text();if(raw.length>20000)return json({error:'too_large'},413);update=JSON.parse(raw);}catch{return json({error:'invalid_json'},400);}
+ if(!Number.isSafeInteger(update?.update_id))return json({ok:true});
+ if(update.callback_query){
+  try{await handlePersonalReminderCallback(env,update.callback_query);return json({ok:true});}
+  catch{return json({error:'temporary_failure'},503);}
+ }
  const m=update.message;
- if(!Number.isSafeInteger(update.update_id)||!m||m.chat?.type!=='private'||m.from?.is_bot||m.from?.id!==m.chat?.id||typeof m.text!=='string')return json({ok:true});
+ if(!m||m.chat?.type!=='private'||m.from?.is_bot||m.from?.id!==m.chat?.id||typeof m.text!=='string')return json({ok:true});
  const [command,arg]=m.text.trim().split(/\s+/,2);const cmd=command.split('@')[0];
  try{
   const admin=await state(env,'admin'),participant=await state(env,'participant');
@@ -54,13 +61,16 @@ export async function handleTelegram(request,env){
   else if(cmd==='/plans'){
    text=role==='admin'?'Мои планы · тестовый режим. Твои пробные события хранятся отдельно от событий Артёма.':'Мои планы. Можно самому добавить событие, изменить его или удалить. Перед первым сохранением приложение объяснит, где хранятся данные. Напоминания о событиях пока не включены.';
    markup={inline_keyboard:[[{text:'Мои планы',web_app:{url:plansUrl}}]]};
+  }else if(cmd==='/recipe'){
+   text='Варёные яйца 🥚 Короткий рецепт по шагам и таймер.';
+   markup={inline_keyboard:[[{text:'Открыть рецепт',web_app:{url:recipeUrl}}]]};
   }else if(cmd==='/guide'){
    const token=role==='admin'?env.TELEGRAM_TEST_ACCESS:env.TELEGRAM_PARTICIPANT_ACCESS;
    if(!token)throw Error('missing_access');
    text=`${block.label[0]}. Можно ответить, когда будет удобно.`;
    markup={inline_keyboard:[[{text:'Открыть путеводитель',url:`https://demonazgh.github.io/your-space/?block=${encodeURIComponent(block.id)}#access=${token}&mode=${role==='admin'?'test':'participant'}`}]]};
-  }else if(cmd==='/status')text=`Compass подключён. Роль: ${role==='admin'?'администратор':'участник'}. Уведомления: ${record.value.enabled?'включены':'отключены'}.\nНовые блоки: сообщение после публикации и ежедневно в 21:00 по Минску, пока блок не завершён. Напоминания о событиях пока не настроены.`;
-  else text=`Привет! Я Compass 🧭 — бот персонального путеводителя. ${role==='admin'?'Твой аккаунт подключён как администратор.':'Ты подключён по личному приглашению.'}\n/guide — открыть путеводитель${role==='admin'?' в тестовом режиме':''}\n/plans — мои планы\n/status — статус\n/stop — отключить уведомления\n/resume — включить снова\nО новых блоках сообщаю после публикации и напоминаю ежедневно в 21:00 по Минску до завершения. Напоминания о событиях пока не настроены. Telegram ID и настройки сохраняются на сервере Cloudflare и в приватном хранилище Дмитрия. Ответы на анкету здесь не показываются.`;
+  }else if(cmd==='/status')text=`Compass подключён. Роль: ${role==='admin'?'администратор':'участник'}. Уведомления: ${record.value.enabled?'включены':'отключены'}.\nНовые блоки: сообщение после публикации и ежедневно в 21:00 по Минску, пока блок не завершён.${role==='participant'&&env.COMPASS_PERSONAL_REMINDERS?'\nНастроены личные напоминания. Отключить уведомления: /stop.':''}`;
+  else text=`Привет! Я Compass 🧭 — бот персонального путеводителя. ${role==='admin'?'Твой аккаунт подключён как администратор.':'Ты подключён по личному приглашению.'}\n/guide — открыть путеводитель${role==='admin'?' в тестовом режиме':''}\n/plans — мои планы\n/recipe — варёные яйца с таймером\n/status — статус\n/stop — отключить уведомления\n/resume — включить снова\nО новых блоках сообщаю после публикации и напоминаю ежедневно в 21:00 по Минску до завершения. Telegram ID и настройки сохраняются на сервере Cloudflare и в приватном хранилище Дмитрия. Ответы на анкету здесь не показываются.`;
   // Persist before replying so retried Telegram updates cannot repeat registration or commands.
   record.value.lastUpdate=update.update_id;await state(env,role,record.value,record.sha);
   await telegram(env,'sendMessage',{chat_id:m.chat.id,text,link_preview_options:{is_disabled:true},...(markup?{reply_markup:markup}:{})});

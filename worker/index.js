@@ -1,6 +1,7 @@
 import {notifyBlock,thankCompletedBlock,allQuestionsHandled} from './notifications.js';
 import {handleTelegram,matches} from './telegram.js';
 import {handlePlans} from './plans.js';
+import {runPersonalReminders} from './personal-reminders.js';
 import {blocks} from '../questions.js';
 
 export async function tokenHash(value) {
@@ -36,7 +37,10 @@ async function completionThanks(env,response,ctx){
 
 export default {
  async scheduled(controller,env,ctx) {
-  ctx.waitUntil(notifyBlock(env,'evening',new Date(controller.scheduledTime)));
+  const task=controller.cron==='0 18 * * *'
+   ? notifyBlock(env,'evening',new Date(controller.scheduledTime))
+   : runPersonalReminders(env,controller);
+  ctx.waitUntil(task);
  },
  async fetch(request,env,ctx) {
   const pathname=new URL(request.url).pathname;

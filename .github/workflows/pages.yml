@@ -18,13 +18,25 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for guide changes
+        id: guide
+        env:
+          PREVIOUS_SHA: ${{ github.event.before }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]] ||
+             ! git diff --quiet "$PREVIOUS_SHA" "$GITHUB_SHA" -- questions.js; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: node --test tests/*.test.js
-      - run: mkdir -p public/plans
+      - run: mkdir -p public/plans public/recipe
       - run: cp index.html app.js cloud.js questions.js style.css public/
       - run: cp plans/index.html plans/app.js plans/style.css public/plans/
+      - run: cp recipe/index.html recipe/app.js recipe/style.css public/recipe/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -33,6 +45,7 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
       - name: Notify Compass after successful publication
+        if: steps.guide.outputs.changed == 'true'
         env:
           TELEGRAM_NOTIFY_KEY: ${{ secrets.TELEGRAM_NOTIFY_KEY }}
         run: node scripts/notify-block.mjs
