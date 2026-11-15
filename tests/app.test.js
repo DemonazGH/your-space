@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {block,blocks} from '../questions.js';
+import {block,blocks,questionAnswered,twentyEighthBlock} from '../questions.js';
 
 function app({cloudMode=true,definition=block}={}){
  const elements=new Map(),memory=new Map(),queued=[];
@@ -24,7 +24,7 @@ function app({cloudMode=true,definition=block}={}){
  const entry={querySelector:selector=>entrySingles[selector]||null,querySelectorAll:selector=>entryGroups[selector]||[]};
  const querySelector=selector=>selector==='[data-entry-mockup]'?(element('#app').innerHTML.includes('data-entry-mockup')?entry:null):finishSelectors.has(selector)&&!element('#app').innerHTML.includes(`id="${selector.slice(1)}"`)?null:element(selector);
  const document={documentElement:{},querySelector,querySelectorAll:s=>s==='[data-lang]'?languages:s==='[name=answer]'?inputs:s==='[name=answer]:checked'?inputs.filter(x=>x.checked):s==='.edit'?edits:[],createElement:()=>element('created')};
- const context={document,block:definition,cloudEnabled:cloudMode,testMode:true,storageKey:'test-key',queue:s=>{
+ const context={document,block:definition,questionAnswered,cloudEnabled:cloudMode,testMode:true,storageKey:'test-key',queue:s=>{
   queued.push(JSON.parse(JSON.stringify(s)));
   if(!cloudMode||!s.consent||s.cloudConsentVersion!==1||!Object.keys(s.answers).length)return;
   const content=JSON.stringify({answers:s.answers,language:s.lang,completed:s.completed===true});
@@ -36,13 +36,13 @@ function app({cloudMode=true,definition=block}={}){
 }
 
 test('Autosave keeps a complete draft unfinished until explicit finish, and editing reopens it',()=>{
- const a=app();
+ const definition=twentyEighthBlock,a=app({definition});
  assert.match(a.element('#app').innerHTML,/автоматически сохраняться/);
  assert.equal(a.queued.at(-1).consent,false);
  a.start();
- for(let i=0;i<block.questions.length;i++){
+ for(let i=0;i<definition.questions.length;i++){
   a.element('#note').oninput({target:{value:`example ${i}`}});
-  if(i<block.questions.length-1)a.element('#next').onclick();
+  if(i<definition.questions.length-1)a.element('#next').onclick();
  }
  assert.equal(a.queued.at(-1).completed,false);
  assert.equal(a.element('#finish').disabled,false);
@@ -62,7 +62,7 @@ test('Autosave keeps a complete draft unfinished until explicit finish, and edit
  assert.equal(a.queued.at(-1).completed,false);
  a.element('#skip').onclick();
  assert.equal(a.queued.at(-1).completed,false);
- for(let i=1;i<block.questions.length;i++)a.element('#next').onclick();
+ for(let i=1;i<definition.questions.length;i++)a.element('#next').onclick();
  a.element('#finish').onclick();
  assert.equal(a.queued.at(-1).completed,true);
  assert.equal(a.queued.at(-1).cloudConsentVersion,1);
@@ -276,17 +276,40 @@ test('Entry mockups disappear on ordinary questions and demo viewing is not an a
 test('First-use questions have no old entry mockup and not trying remains a complete answer requiring explicit finish',()=>{
  const previous=blocks.find(definition=>definition.id==='plans-entry-choice-v1'),historical=app({definition:previous});historical.start();
  assert.ok(historical.querySelector('[data-entry-mockup]'));assert.deepEqual(historical.queued.at(-1).answers,{});
- assert.equal(block.id,'plans-first-use-v1');
- const a=app();a.start();
- for(const [index,question] of block.questions.entries()){
+ const definition=twentyEighthBlock;
+ const a=app({definition});a.start();
+ for(const [index,question] of definition.questions.entries()){
   assert.equal(a.querySelector('[data-entry-mockup]'),null);assert.doesNotMatch(a.element('#app').innerHTML,/class="plan-preview"|data-entry-example-field/);
   const input=a.inputs.find(item=>item.value==='not_tried');input.checked=true;input.onchange();
   assert.deepEqual(a.queued.at(-1).answers[question.id],{values:['not_tried'],text:'',skipped:false});
-  if(index<block.questions.length-1)a.element('#next').onclick();
+  if(index<definition.questions.length-1)a.element('#next').onclick();
  }
  assert.equal(a.queued.at(-1).completed,false);assert.equal(a.element('#finish').disabled,false);
  a.element('#finish').onclick();assert.equal(a.queued.at(-1).completed,true);assert.equal(a.queued.at(-1).screen,'done');
  assert.ok(Object.values(a.queued.at(-1).answers).every(answer=>answer.values[0]==='not_tried'&&answer.text===''));
+});
+
+test('Block 29 saves a written idea or a selected reminder preference',()=>{
+ for(const [choice,customText] of [['plans',''],['other','Взять книгу'],['none','']]){
+  const a=app();a.start();
+  assert.match(a.element('#app').innerHTML,/Свой вариант/);
+  assert.match(a.element('#app').innerHTML,/Пока не хочу напоминаний/);
+  const select=value=>a.inputs.find(input=>input.value===value).onchange();
+  select('other');
+  assert.equal(a.element('#answer-note').hidden,false);
+  assert.equal(a.element('#finish').disabled,true);
+  a.element('#note').oninput({target:{value:'   '}});
+  assert.equal(a.element('#finish').disabled,true);
+  a.element('#note').oninput({target:{value:'Взять книгу'}});
+  if(choice!=='other')select(choice);
+  assert.equal(a.element('#answer-note').hidden,choice!=='other');
+  a.element('#next').onclick();
+  assert.equal(a.element('#finish').disabled,false);
+  if(choice==='other')assert.match(a.element('#app').innerHTML,/Свой вариант.*Взять книгу/);
+  a.element('#finish').onclick();
+  assert.equal(a.queued.at(-1).completed,true);
+  assert.deepEqual(a.queued.at(-1).answers.reminder_choice,{values:[choice],text:customText,skipped:false});
+ }
 });
 
 test('Finish shows waiting or retry until remote acknowledgement, then permits closing',()=>{
@@ -330,7 +353,7 @@ test('Synchronous pending notification during finish tolerates the still-visible
  for(const fromReview of [false,true]){
   const a=app();a.start();
   for(let i=0;i<block.questions.length;i++){
-   a.element('#note').oninput({target:{value:`answer ${i}`}});
+   a.inputs.find(input=>input.value===block.questions[i].options[0][0]).onchange();
    if(i<block.questions.length-1||fromReview)a.element('#next').onclick();
   }
   assert.equal(a.querySelector('#finish-mark'),null);

@@ -36,6 +36,35 @@ test('Notifications skip opt-out and completed blocks; deduplicate publication a
   done=true;assert.equal((await notifyBlock(env,'evening',new Date('2026-10-11T18:00:00Z'))).reason,'completed');assert.equal(sends,2);
  }finally{globalThis.fetch=original;}
 });
+
+test('A timed block sends its announcement only on the configured date and time',async()=>{
+ const original=globalThis.fetch;
+ const env={TELEGRAM_NOTIFY_KEY:'secret'};
+ const at=Date.parse(block.announceAt);
+ let reads=0;
+ globalThis.fetch=async(url)=>{
+  assert.ok(url.endsWith('/contents/compass/participant.json'));
+  reads++;
+  return new Response('',{status:404});
+ };
+ const invoke=async(cron,scheduledTime)=>{
+  const tasks=[];
+  await worker.scheduled({cron,scheduledTime},env,{waitUntil:task=>tasks.push(task)});
+  await Promise.all(tasks);
+ };
+ try{
+  const request=new Request('https://host/telegram/notify',{method:'POST',headers:{Authorization:'Bearer secret'},body:JSON.stringify({blockId:block.id})});
+  const response=await worker.fetch(request,env);
+  assert.equal(response.status,200);
+  assert.deepEqual(await response.json(),{sent:false,reason:'publication_scheduled',scheduledAt:block.announceAt});
+  await invoke('15 4 16 11 *',Date.parse('2027-11-16T04:15:00Z'));
+  await invoke('0 18 * * *',Date.parse('2026-11-16T18:00:00Z'));
+  assert.equal(reads,0);
+  await invoke('15 4 16 11 *',at);
+  assert.equal(reads,1);
+ }finally{globalThis.fetch=original;}
+});
+
 test('Notification endpoint rejects callers without dedicated secret',async()=>{const r=await worker.fetch(new Request('https://host/telegram/notify',{method:'POST'}),{TELEGRAM_NOTIFY_KEY:'secret'});assert.equal(r.status,401);});
 
 const completionResponse=()=>({blockId:block.id,mode:'participant',completed:true,sessionId:'11111111-1111-4111-8111-111111111111',revision:3,answers:Object.fromEntries(block.questions.map(q=>[q.id,{values:[q.options[0][0]],text:'',skipped:false}]))});

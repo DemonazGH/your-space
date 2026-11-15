@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {firstBlock as block} from '../questions.js';
 import {secondBlock as second} from '../questions.js';
-import {block as activeBlock,blocks,twentySeventhBlock} from '../questions.js';
+import {block as activeBlock,blocks,twentySeventhBlock,twentyEighthBlock} from '../questions.js';
 test('Second block has four bilingual questions and a distinct identity',()=>{assert.notEqual(second.id,block.id);assert.equal(second.questions.length,4);assert.equal(new Set(second.questions.map(q=>q.id)).size,4);for(const q of second.questions){assert.equal(q.title.length,2);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>x.trim()));}}});
 test('Stable unique question IDs and equivalent bilingual choices',()=>{assert.equal(block.questions.length,6);assert.equal(new Set(block.questions.map(q=>q.id)).size,6);for(const q of block.questions){assert.equal(q.title.length,2);assert(q.title.every(x=>typeof x==='string'&&x.trim()));assert.equal(new Set(q.options.map(o=>o[0])).size,q.options.length);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>typeof x==='string'&&x.trim()));assert(!['other','unknown','private'].includes(o[0]));}}});
 
-// Fingerprints of answer schemas from the published 27-block catalogue. Labels
+// Fingerprints of answer schemas from the published 28-block catalogue. Labels
 // may be improved, but saved question IDs, choice IDs, types and versions must stay valid.
 const historicalSchemas=[
  ['first-steps-v1','f0ca255be1cba1838ae6a761270128b94b878cea9e3b445a7383fb4c237dec56'],
@@ -36,17 +36,18 @@ const historicalSchemas=[
  ['detective-story-choice-v1','ef1e741b4cad2c0fd3057d2a84d9d1a8b4c995dcce5bbb7ba9277037cb25c63c'],
  ['phone-daily-helper-v1','cc158ed9b49a4aae273184afbc161824417f29d6755cd2aac37cbacdac4916e2'],
  ['plans-screen-preview-v1','b5f2d690a1d1304ec33cb90cd0bda0e83b1f76d0a0a8a58251ab8a9abc885e6a'],
- ['plans-entry-choice-v1','af11003abada3591d1262b89a086f7fc29527d81185fc9f47c1d4db81237ff98']
+ ['plans-entry-choice-v1','af11003abada3591d1262b89a086f7fc29527d81185fc9f47c1d4db81237ff98'],
+ ['plans-first-use-v1','35475fd41c7990da1b899ac6a8eb6e873a172b61b7fa94931230de4859ce0f6d']
 ];
 function schemaDigest(definition){
  const schema={id:definition.id,version:definition.version,requiresFinish:definition.requiresFinish===true,questions:definition.questions.map(q=>({id:q.id,type:q.type,options:q.options.map(o=>o[0]),...(q.exclusiveOptions?{exclusiveOptions:q.exclusiveOptions}:{})}))};
  return createHash('sha256').update(JSON.stringify(schema)).digest('hex');
 }
 
-test('The 28-block catalogue preserves all 27 published answer schemas and unique identities',()=>{
- assert.equal(blocks.length,28);
- assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'plans-first-use-v1']);
- assert.equal(new Set(blocks.map(b=>b.id)).size,28);assert.equal(blocks.at(-1),activeBlock);
+test('The 29-block catalogue preserves all 28 published answer schemas and unique identities',()=>{
+ assert.equal(blocks.length,29);
+ assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'telegram-reminder-choice-v1']);
+ assert.equal(new Set(blocks.map(b=>b.id)).size,29);assert.equal(blocks.at(-1),activeBlock);
  for(const [id,digest] of historicalSchemas){assert.equal(schemaDigest(blocks.find(b=>b.id===id)),digest,`Published answer schema changed: ${id}`);}
 });
 
@@ -148,7 +149,7 @@ test('Block 26 asks for preferred plan contents and one impression of an optiona
 
 test('Block 27 asks two single-choice preferences about the source and entry method of plans',()=>{
  assert.equal(twentySeventhBlock.id,'plans-entry-choice-v1');assert.equal(twentySeventhBlock.version,1);assert.equal(twentySeventhBlock.requiresFinish,true);
- assert.equal(blocks.at(-2),twentySeventhBlock);
+ assert.equal(blocks.find(definition=>definition.id==='plans-entry-choice-v1'),twentySeventhBlock);
  assert.deepEqual(twentySeventhBlock.questions.map(q=>[q.id,q.type,q.options.map(o=>o[0])]),[
   ['plan_source','single',['self','suggestions','both','not_now']],
   ['plan_entry','single',['fields','line','example','not_now']]
@@ -157,13 +158,25 @@ test('Block 27 asks two single-choice preferences about the source and entry met
 });
 
 test('Block 28 asks about actual first use without requiring a new attempt or opening a mockup',()=>{
- assert.equal(activeBlock.id,'plans-first-use-v1');assert.equal(activeBlock.version,1);assert.equal(activeBlock.requiresFinish,true);
- assert.deepEqual(activeBlock.questions.map(question=>[question.id,question.type,question.options.map(option=>option[0])]),[
+ assert.equal(twentyEighthBlock.id,'plans-first-use-v1');assert.equal(twentyEighthBlock.version,1);assert.equal(twentyEighthBlock.requiresFinish,true);
+ assert.equal(blocks.find(definition=>definition.id==='plans-first-use-v1'),twentyEighthBlock);
+ assert.deepEqual(twentyEighthBlock.questions.map(question=>[question.id,question.type,question.options.map(option=>option[0])]),[
   ['plan_try','single',['self','help','started','not_tried']],
   ['plan_experience','single',['easy','figured_out','error','inconvenient','unfinished','not_tried']]
  ]);
- assert.ok(activeBlock.questions.every(question=>!question.entryMockup&&!question.planPreview&&!question.passage));
- assert.ok(!/https?:\/\/|t\.me\/|<a\b/i.test(JSON.stringify(activeBlock)));
+ assert.ok(twentyEighthBlock.questions.every(question=>!question.entryMockup&&!question.planPreview&&!question.passage));
+ assert.ok(!/https?:\/\/|t\.me\/|<a\b/i.test(JSON.stringify(twentyEighthBlock)));
 });
 
+test('Block 29 offers one reminder preference with a bilingual custom option and explicit finish',()=>{
+ assert.equal(activeBlock.id,'telegram-reminder-choice-v1');
+ assert.equal(activeBlock.version,1);
+ assert.equal(activeBlock.requiresFinish,true);
+ assert.equal(activeBlock.questions.length,1);
+ const [question]=activeBlock.questions;
+ assert.equal(question.id,'reminder_choice');
+ assert.equal(question.type,'single');
+ assert.deepEqual(question.options.map(([id])=>id),['plans','getting_ready','home_task','own_project','event','none']);
+ assert.deepEqual(question.customAnswerLabel,['Свой вариант','My own idea']);
+});
 

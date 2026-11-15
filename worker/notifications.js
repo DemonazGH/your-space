@@ -1,12 +1,9 @@
-import {block} from '../questions.js';
+import {block,questionAnswered} from '../questions.js';
 import {state,telegram,decode} from './telegram.js';
 const headers=env=>({Authorization:`Bearer ${env.GITHUB_TOKEN}`,Accept:'application/vnd.github+json','User-Agent':'compass'});
 export const minskDate=date=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Minsk',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
 export function allQuestionsHandled(definition,answers){
- return definition.questions.every(q=>{
-  const answer=answers?.[q.id];
-  return !!answer&&(answer.skipped===true||(Array.isArray(answer.values)&&answer.values.length>0)||(typeof answer.text==='string'&&answer.text.trim().length>0));
- });
+ return definition.questions.every(question=>questionAnswered(question,answers?.[question.id]));
 }
 export async function thankCompletedBlock(env,response,now=new Date()){
  // Older blocks used automatic completion; only an explicit finish in the

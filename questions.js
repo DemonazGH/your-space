@@ -381,7 +381,7 @@ export const twentySeventhBlock = {
  ]}
  ]
 };
-export const block = {
+export const twentyEighthBlock = {
  id:'plans-first-use-v1',version:1,requiresFinish:true,
  label:['Блок 28 · Опыт с «Моими планами»','Set 28 · Your experience with “My plans”'],
  title:['Как получилось<br>с «Моими планами»?','How did it go<br>with “My plans”?'],
@@ -403,4 +403,34 @@ export const block = {
  ]}
  ]
 };
-export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,twentyFifthBlock,twentySixthBlock,twentySeventhBlock,block];
+export function questionAnswered(question,answer){
+ if(!answer)return false;
+ if(answer.skipped===true)return true;
+ const hasChoice=Array.isArray(answer.values)&&answer.values.length>0;
+ const hasText=typeof answer.text==='string'&&answer.text.trim().length>0;
+ if(question.customAnswerLabel)return hasChoice&&(answer.values[0]!=='other'||hasText);
+ return hasChoice||hasText;
+}
+
+export const block = {
+ id:'telegram-reminder-choice-v1',version:1,requiresFinish:true,
+ announceAt:'2026-11-16T04:15:00.000Z',
+ label:['Блок 29 · Напоминания в Telegram','Set 29 · Telegram reminders'],
+ title:['Напоминания в Telegram','Telegram reminders'],
+ intro:['Можно выбрать одно напоминание и попробовать его неделю. Если захочешь попробовать, время выберешь сам. Отправка ответа сама по себе ничего не включает.','You can choose one reminder and try it for a week. If you want to try it, you can pick the time. Sending an answer does not turn on a reminder.'],
+ questions:[
+ {id:'reminder_choice',type:'single',
+ title:['О чём тебе самому было бы удобно получать напоминание в Telegram?','What would you like a reminder about in Telegram?'],
+ hint:['Выбери один пункт или напиши свой вариант.','Choose one option or write your own.'],
+ customAnswerLabel:['Свой вариант','My own idea'],
+ options:[
+ ['plans','Про планы — например, заранее напомнить о встрече или занятии','Plans, such as a reminder before a meeting or lesson'],
+ ['getting_ready','Про сборы — взять с собой нужную вещь или зарядить телефон перед выходом','Getting ready, such as taking something with me or charging my phone before going out'],
+ ['home_task','Про домашнее дело — например, приготовить что-нибудь','Something to do at home, such as cooking something'],
+ ['own_project','Про то, что я сам хочу сделать — например, продолжить проект или попробовать что-то новое','Something I want to do, such as continuing a project or trying something new'],
+ ['event','Про что-то интересное — например, что скоро начнётся событие, которого я жду','Something I am looking forward to, such as an event that is about to start'],
+ ['none','Пока не хочу напоминаний','I do not want reminders for now']
+ ]}
+ ]
+};
+export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,twentyFifthBlock,twentySixthBlock,twentySeventhBlock,twentyEighthBlock,block];

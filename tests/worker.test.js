@@ -276,6 +276,41 @@ test('A complete first-use draft is not completed automatically and a missing an
  data.answers.plan_experience={values:[],text:' ',skipped:false};assert.throws(()=>validate(data),/Incomplete finish/);
  data.answers.plan_experience={values:[],text:'',skipped:true};assert.equal(validate(data).completed,true);
 });
+
+const reminderSample=(values,text='',{completed=true,skipped=false}={})=>({
+ ...sample(),blockId:'telegram-reminder-choice-v1',completed,
+ answers:{reminder_choice:{values,text,skipped}}
+});
+
+test('Block 29 saves one reminder preference, a refusal or a deliberate skip without custom text',()=>{
+ for(const choice of ['plans','getting_ready','home_task','own_project','event','none','unknown','private']){
+  const entry=reminderSample([choice]);
+  const saved=validate(entry);
+  assert.equal(saved.completed,true);
+  assert.deepEqual(saved.answers,entry.answers);
+ }
+ const skipped=reminderSample([],'',{skipped:true});
+ assert.deepEqual(validate(skipped).answers,skipped.answers);
+ assert.throws(()=>validate(reminderSample(['plans','event'])),/Invalid choice/);
+ assert.throws(()=>validate(reminderSample(['other','plans'],'Мой вариант')),/Invalid choice/);
+});
+
+test('Block 29 allows an empty custom draft but requires nonblank text to finish with the custom option',()=>{
+ for(const text of ['',' \t\n']){
+  assert.throws(()=>validate(reminderSample(['other'],text)),/Incomplete finish/);
+  assert.equal(validate(reminderSample(['other'],text,{completed:false})).completed,false);
+ }
+ const own=reminderSample(['other'],'  Напомнить про мой проект  ');
+ assert.deepEqual(validate(own).answers,own.answers);
+ for(const values of [[],['plans'],['unknown'],['private']]){
+  assert.throws(()=>validate(reminderSample(values,'Мой вариант')),/Invalid custom answer/);
+ }
+ const historical=firstUseSample();
+ historical.answers.plan_try.text='Исторически допускался комментарий к готовому варианту';
+ assert.deepEqual(validate(historical).answers,historical.answers);
+ assert.throws(()=>validate({...historical,blockId:own.blockId}),/Invalid answer/);
+});
+
 test('Sixth block accepts practical experience and keeps older schemas separate',()=>{const data={...sample(),blockId:'hands-on-and-asking-v1',answers:{practical_task:{values:['settings'],text:'',skipped:false},asking_recently:{values:['not_asked'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'hands-on-and-asking-v1');assert.throws(()=>validate({...sample(),blockId:'hands-on-and-asking-v1'}));});
 test('Fifth block validates independently from earlier answers',()=>{const data={...sample(),blockId:'follow-up-examples-v1',answers:{tech_interest:{values:['devices'],text:'',skipped:false},repeat_result:{values:['forgot'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'follow-up-examples-v1');assert.throws(()=>validate({...sample(),blockId:'follow-up-examples-v1'}));});
 test('Fourth block accepts its choices and rejects previous block answers',()=>{const data={...sample(),blockId:'content-and-clarity-v1',answers:{content_topics:{values:['games','science'],text:'',skipped:false}}};assert.equal(validate(data).blockId,'content-and-clarity-v1');assert.throws(()=>validate({...sample(),blockId:'content-and-clarity-v1'}));});

@@ -4,7 +4,7 @@ import {mkdirSync,readFileSync,renameSync,writeFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {blocks} from '../questions.js';
+import {blocks,questionAnswered} from '../questions.js';
 
 const repo='DemonazGH/personal-guide-data';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
@@ -37,12 +37,10 @@ export function parseParticipantRecord(data,path,catalog=blocks) {
   if(answer.values.some(value=>!choices.has(value))||new Set(answer.values).size!==answer.values.length||
      answer.values.length>(question.type==='multi'?choices.size:1)||
      (answer.values.length>1&&answer.values.some(value=>exclusive.has(value)))||
-     (answer.skipped&&(answer.values.length||answer.text.trim())))throw Error('invalid_choices');
+     (answer.skipped&&(answer.values.length||answer.text.trim()))||
+     (question.customAnswerLabel&&answer.text.trim()&&answer.values[0]!=='other'))throw Error('invalid_choices');
  }
- if(schema.requiresFinish&&data.completed&&!schema.questions.every(question=>{
-  const answer=data.answers[question.id];
-  return answer&&(answer.skipped||answer.values.length>0||answer.text.trim().length>0);
- }))throw Error('incomplete_finish');
+ if(schema.requiresFinish&&data.completed&&!schema.questions.every(question=>questionAnswered(question,data.answers[question.id])))throw Error('incomplete_finish');
  return {data,schema};
 }
 
@@ -58,7 +56,7 @@ export function reviewCandidate({path,sha,data},seen={},catalog=blocks) {
    const answer=data.answers[question.id];
    return {
     questionId:question.id,question:question.title[0],skipped:answer.skipped,
-    selected:answer.values.map(value=>({id:value,label:question.options.find(option=>option[0]===value)?.[1]||globalOptions[value]})),
+    selected:answer.values.map(value=>({id:value,label:question.options.find(option=>option[0]===value)?.[1]||(value==='other'?question.customAnswerLabel?.[0]:null)||globalOptions[value]})),
     text:answer.text
    };
   })

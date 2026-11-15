@@ -2,7 +2,7 @@ import {notifyBlock,thankCompletedBlock,allQuestionsHandled} from './notificatio
 import {handleTelegram,matches} from './telegram.js';
 import {handlePlans} from './plans.js';
 import {runPersonalReminders} from './personal-reminders.js';
-import {blocks} from '../questions.js';
+import {block,blocks} from '../questions.js';
 
 export async function tokenHash(value) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value)))].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -22,6 +22,7 @@ export function validate(x) {
     if(a.values.some(v=>!valid.has(v))||new Set(a.values).size!==a.values.length||a.values.length>(q.type==='multi'?valid.size:1))throw Error('Invalid choice');
     if(a.values.length>1&&a.values.some(v=>exclusive.has(v)))throw Error('Exclusive choice');
     if(a.skipped&&(a.values.length||a.text.trim()))throw Error('Invalid skip');
+    if(q.customAnswerLabel&&a.text.trim()&&a.values[0]!=='other')throw Error('Invalid custom answer');
     answers[id]={values:a.values,text:a.text,skipped:a.skipped};
   }
   if(block.requiresFinish&&x.completed&&!allQuestionsHandled(block,answers))throw Error('Incomplete finish');
@@ -37,9 +38,16 @@ async function completionThanks(env,response,ctx){
 
 export default {
  async scheduled(controller,env,ctx) {
-  const task=controller.cron==='0 18 * * *'
-   ? notifyBlock(env,'evening',new Date(controller.scheduledTime))
-   : runPersonalReminders(env,controller);
+  const scheduledTime=new Date(controller.scheduledTime);
+  if(block.announceAt&&scheduledTime.getTime()===Date.parse(block.announceAt)){
+   ctx.waitUntil(notifyBlock(env,'publication',scheduledTime));
+   return;
+  }
+  if(controller.cron==='0 18 * * *'){
+   if(!block.announceAt)ctx.waitUntil(notifyBlock(env,'evening',scheduledTime));
+   return;
+  }
+  const task=runPersonalReminders(env,controller);
   ctx.waitUntil(task);
  },
  async fetch(request,env,ctx) {
@@ -49,7 +57,8 @@ export default {
    if(request.method!=='POST'||!env.TELEGRAM_NOTIFY_KEY||!matches(request.headers.get('Authorization'),`Bearer ${env.TELEGRAM_NOTIFY_KEY}`))return Response.json({error:'unauthorized'},{status:401});
    try {
     const {blockId}=await request.json();
-    if(blockId!==blocks[blocks.length-1].id)return Response.json({error:'block_mismatch'},{status:409});
+    if(blockId!==block.id)return Response.json({error:'block_mismatch'},{status:409});
+    if(block.announceAt)return Response.json({sent:false,reason:'publication_scheduled',scheduledAt:block.announceAt});
     return Response.json(await notifyBlock(env));
    }catch{return Response.json({error:'notification_failed'},{status:503});}
   }
