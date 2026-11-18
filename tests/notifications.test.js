@@ -37,15 +37,26 @@ test('Notifications skip opt-out and completed blocks; deduplicate publication a
  }finally{globalThis.fetch=original;}
 });
 
-test('A timed block sends its announcement only on the configured date and time',async()=>{
+test('The current block publishes immediately and its scheduled evening reminder is deduplicated',async()=>{
  const original=globalThis.fetch;
- const env={TELEGRAM_NOTIFY_KEY:'secret'};
- const at=Date.parse(block.announceAt);
- let reads=0;
- globalThis.fetch=async(url)=>{
-  assert.ok(url.endsWith('/contents/compass/participant.json'));
-  reads++;
-  return new Response('',{status:404});
+ const env={TELEGRAM_NOTIFY_KEY:'secret',DATA_REPO:'owner/private',GITHUB_TOKEN:'fake',TELEGRAM_BOT_TOKEN:'fake',TELEGRAM_PARTICIPANT_ACCESS:'b'.repeat(64)};
+ const records=new Map(),messages=[];
+ globalThis.fetch=async(url,options={})=>{
+  if(url.includes('api.telegram.org')){
+   messages.push(JSON.parse(options.body));
+   return Response.json({ok:true,result:{message_id:messages.length}});
+  }
+  if(url.includes('github.io'))return new Response(`export const block = {id:'${block.id}'}`);
+  if(url.includes('/git/trees/'))return Response.json({tree:[]});
+  const key=url.split('/contents/compass/')[1];assert.ok(key);
+  if(key==='participant.json')return Response.json({sha:'participant',content:Buffer.from(JSON.stringify({chatId:123,enabled:true})).toString('base64')});
+  if(options.method==='PUT'){
+   const body=JSON.parse(options.body);
+   if(records.has(key)&&!body.sha)return new Response('',{status:409});
+   records.set(key,JSON.parse(Buffer.from(body.content,'base64')));
+   return Response.json({});
+  }
+  return records.has(key)?Response.json({sha:'delivery',content:Buffer.from(JSON.stringify(records.get(key))).toString('base64')}):new Response('',{status:404});
  };
  const invoke=async(cron,scheduledTime)=>{
   const tasks=[];
@@ -53,15 +64,21 @@ test('A timed block sends its announcement only on the configured date and time'
   await Promise.all(tasks);
  };
  try{
+  assert.equal(block.announceAt,undefined);
   const request=new Request('https://host/telegram/notify',{method:'POST',headers:{Authorization:'Bearer secret'},body:JSON.stringify({blockId:block.id})});
   const response=await worker.fetch(request,env);
   assert.equal(response.status,200);
-  assert.deepEqual(await response.json(),{sent:false,reason:'publication_scheduled',scheduledAt:block.announceAt});
-  await invoke('15 4 16 11 *',Date.parse('2027-11-16T04:15:00Z'));
-  await invoke('0 18 * * *',Date.parse('2026-11-16T18:00:00Z'));
-  assert.equal(reads,0);
-  await invoke('15 4 16 11 *',at);
-  assert.equal(reads,1);
+  assert.equal((await response.json()).sent,true);
+  assert.equal(records.get(`deliveries/${block.id}-publication.json`).status,'sent');
+  assert.equal(messages.length,1);
+  const evening=Date.parse('2026-11-18T18:00:00Z');
+  await invoke('0 18 * * *',evening);
+  await invoke('0 18 * * *',evening);
+  assert.equal(messages.length,2);
+  assert.equal(records.get(`deliveries/${block.id}-2026-11-18.json`).status,'sent');
+  assert.ok(messages.every(message=>message.chat_id===123));
+  const link=new URL(messages[1].reply_markup.inline_keyboard[0][0].url);
+  assert.equal(link.searchParams.get('block'),block.id);
  }finally{globalThis.fetch=original;}
 });
 

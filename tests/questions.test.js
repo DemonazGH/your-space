@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import {firstBlock as block} from '../questions.js';
 import {secondBlock as second} from '../questions.js';
-import {block as activeBlock,blocks,twentySeventhBlock,twentyEighthBlock} from '../questions.js';
+import {block as activeBlock,blocks,twentySeventhBlock,twentyEighthBlock,twentyNinthBlock,questionAnswered} from '../questions.js';
 test('Second block has four bilingual questions and a distinct identity',()=>{assert.notEqual(second.id,block.id);assert.equal(second.questions.length,4);assert.equal(new Set(second.questions.map(q=>q.id)).size,4);for(const q of second.questions){assert.equal(q.title.length,2);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>x.trim()));}}});
 test('Stable unique question IDs and equivalent bilingual choices',()=>{assert.equal(block.questions.length,6);assert.equal(new Set(block.questions.map(q=>q.id)).size,6);for(const q of block.questions){assert.equal(q.title.length,2);assert(q.title.every(x=>typeof x==='string'&&x.trim()));assert.equal(new Set(q.options.map(o=>o[0])).size,q.options.length);for(const o of q.options){assert.equal(o.length,3);assert(o.every(x=>typeof x==='string'&&x.trim()));assert(!['other','unknown','private'].includes(o[0]));}}});
 
-// Fingerprints of answer schemas from the published 28-block catalogue. Labels
+// Fingerprints of answer schemas from the published 29-block catalogue. Labels
 // may be improved, but saved question IDs, choice IDs, types and versions must stay valid.
 const historicalSchemas=[
  ['first-steps-v1','f0ca255be1cba1838ae6a761270128b94b878cea9e3b445a7383fb4c237dec56'],
@@ -37,17 +37,18 @@ const historicalSchemas=[
  ['phone-daily-helper-v1','cc158ed9b49a4aae273184afbc161824417f29d6755cd2aac37cbacdac4916e2'],
  ['plans-screen-preview-v1','b5f2d690a1d1304ec33cb90cd0bda0e83b1f76d0a0a8a58251ab8a9abc885e6a'],
  ['plans-entry-choice-v1','af11003abada3591d1262b89a086f7fc29527d81185fc9f47c1d4db81237ff98'],
- ['plans-first-use-v1','35475fd41c7990da1b899ac6a8eb6e873a172b61b7fa94931230de4859ce0f6d']
+ ['plans-first-use-v1','35475fd41c7990da1b899ac6a8eb6e873a172b61b7fa94931230de4859ce0f6d'],
+ ['telegram-reminder-choice-v1','264ec3c7b28b1b6669785a27ba3b3cf03b3f10fdc17a43a821b9b71b4487ece3']
 ];
 function schemaDigest(definition){
  const schema={id:definition.id,version:definition.version,requiresFinish:definition.requiresFinish===true,questions:definition.questions.map(q=>({id:q.id,type:q.type,options:q.options.map(o=>o[0]),...(q.exclusiveOptions?{exclusiveOptions:q.exclusiveOptions}:{})}))};
  return createHash('sha256').update(JSON.stringify(schema)).digest('hex');
 }
 
-test('The 29-block catalogue preserves all 28 published answer schemas and unique identities',()=>{
- assert.equal(blocks.length,29);
- assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'telegram-reminder-choice-v1']);
- assert.equal(new Set(blocks.map(b=>b.id)).size,29);assert.equal(blocks.at(-1),activeBlock);
+test('The 30-block catalogue preserves all 29 published answer schemas and unique identities',()=>{
+ assert.equal(blocks.length,30);
+ assert.deepEqual(blocks.map(b=>b.id),[...historicalSchemas.map(([id])=>id),'expected-event-reminder-v1']);
+ assert.equal(new Set(blocks.map(b=>b.id)).size,30);assert.equal(blocks.at(-1),activeBlock);
  for(const [id,digest] of historicalSchemas){assert.equal(schemaDigest(blocks.find(b=>b.id===id)),digest,`Published answer schema changed: ${id}`);}
 });
 
@@ -169,14 +170,40 @@ test('Block 28 asks about actual first use without requiring a new attempt or op
 });
 
 test('Block 29 offers one reminder preference with a bilingual custom option and explicit finish',()=>{
- assert.equal(activeBlock.id,'telegram-reminder-choice-v1');
- assert.equal(activeBlock.version,1);
- assert.equal(activeBlock.requiresFinish,true);
- assert.equal(activeBlock.questions.length,1);
- const [question]=activeBlock.questions;
+ assert.equal(twentyNinthBlock.id,'telegram-reminder-choice-v1');
+ assert.equal(twentyNinthBlock.version,1);
+ assert.equal(twentyNinthBlock.requiresFinish,true);
+ assert.equal(twentyNinthBlock.announceAt,'2026-11-16T04:15:00.000Z');
+ assert.equal(blocks.at(-2),twentyNinthBlock);
+ assert.equal(twentyNinthBlock.questions.length,1);
+ const [question]=twentyNinthBlock.questions;
  assert.equal(question.id,'reminder_choice');
  assert.equal(question.type,'single');
  assert.deepEqual(question.options.map(([id])=>id),['plans','getting_ready','home_task','own_project','event','none']);
  assert.deepEqual(question.customAnswerLabel,['Свой вариант','My own idea']);
+});
+
+test('Block 30 asks about an event and reminder lead time without requiring free text',()=>{
+ assert.equal(activeBlock.id,'expected-event-reminder-v1');assert.equal(activeBlock.version,1);assert.equal(activeBlock.requiresFinish,true);
+ assert.equal(activeBlock.announceAt,undefined);
+ assert.deepEqual(activeBlock.questions.map(question=>[question.id,question.type,question.options.map(option=>option[0])]),[
+  ['anticipated_event','single',['yes','several','none','not_now']],
+  ['event_notice','single',['10min','30min','hour','day','unsure','not_needed']]
+ ]);
+ for(const question of activeBlock.questions){
+  assert.deepEqual(question.otherLabel,['Свой вариант','My own idea']);assert.equal(question.customAnswerLabel,undefined);
+  assert.equal(questionAnswered(question,{values:[question.options[0][0]],text:'',skipped:false}),true);
+  assert.equal(questionAnswered(question,{values:['other'],text:'',skipped:false}),true);
+  assert.equal(questionAnswered(question,{values:[],text:'',skipped:true}),true);
+  assert.equal(question.entryMockup,undefined);assert.equal(question.planPreview,undefined);
+ }
+});
+
+test('Block 30 keeps the optional pin tip outside the answers and does not recount private replies',()=>{
+ assert.equal(activeBlock.afterQuestions.length,2);assert.ok(activeBlock.afterQuestions.every(value=>typeof value==='string'&&value.trim()));
+ assert.equal(activeBlock.afterQuestions[0],'Если хочешь, чат Compass можно закрепить вверху списка чатов Telegram, чтобы его было проще находить. На Android для этого можно нажать и удерживать чат в списке, затем выбрать значок закрепления 📌. Закреплённый чат останется наверху.');
+ assert.ok(!activeBlock.questions.some(question=>/закреп|Android|pin icon/i.test(JSON.stringify(question))));
+ assert.equal(activeBlock.questions[0].title[0],'Есть ли сейчас событие, которого ты ждёшь и о котором хотел бы получить напоминание?');
+ assert.equal(activeBlock.questions[1].title[0],'За сколько времени до события тебе было бы удобно получить напоминание?');
 });
 

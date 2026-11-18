@@ -412,7 +412,7 @@ export function questionAnswered(question,answer){
  return hasChoice||hasText;
 }
 
-export const block = {
+export const twentyNinthBlock = {
  id:'telegram-reminder-choice-v1',version:1,requiresFinish:true,
  announceAt:'2026-11-16T04:15:00.000Z',
  label:['Блок 29 · Напоминания в Telegram','Set 29 · Telegram reminders'],
@@ -433,4 +433,27 @@ export const block = {
  ]}
  ]
 };
-export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,twentyFifthBlock,twentySixthBlock,twentySeventhBlock,twentyEighthBlock,block];
+export const block = {
+ id:'expected-event-reminder-v1',version:1,requiresFinish:true,
+ label:['Блок 30 · Событие, которого ты ждёшь','Set 30 · An event you are looking forward to'],
+ title:['Событие,<br>которого ты ждёшь','An event you are<br>looking forward to'],
+ intro:['Два коротких вопроса о событии и удобном времени для напоминания. Можно пока ничего не выбирать. Ответы сами по себе не включают напоминание. Писать текст необязательно.','Two short questions about an event and a time for a reminder. You can choose nothing for now. Your answers do not turn on a reminder. Writing is optional.'],
+ questions:[
+ {id:'anticipated_event',type:'single',title:['Есть ли сейчас событие, которого ты ждёшь и о котором хотел бы получить напоминание?','Is there an event you are looking forward to that you would like a reminder about?'],hint:['Если хочешь, можно написать ниже название события, дату и время — если уже знаешь. Личные подробности не нужны. Можно ответить без текста.','If you want, you can write the event name, date and time below, if you already know them. You do not need to include personal details. You can answer without writing.'],otherLabel:['Свой вариант','My own idea'],options:[
+ ['yes','Да, есть конкретное событие.','Yes, I have a specific event in mind.'],
+ ['several','Есть несколько, пока не выбрал.','There are several; I have not chosen one yet.'],
+ ['none','Пока нет такого события.','There is no event like that for now.'],
+ ['not_now','Пока не хочу напоминаний.','I do not want reminders for now.']
+ ]},
+ {id:'event_notice',type:'single',title:['За сколько времени до события тебе было бы удобно получить напоминание?','How long before the event would you like to get a reminder?'],hint:['Если событие пока не выбрал, можно ответить «Пока не знаю» или «Пока напоминание не нужно». Свой вариант можно добавить ниже, но это необязательно.','If you have not chosen an event yet, you can choose “I do not know yet” or “I do not need a reminder for now”. You can add your own answer below, but you do not have to.'],otherLabel:['Свой вариант','My own idea'],options:[
+ ['10min','За 10 минут.','10 minutes before.'],
+ ['30min','За 30 минут.','30 minutes before.'],
+ ['hour','За час.','One hour before.'],
+ ['day','За день.','One day before.'],
+ ['unsure','Пока не знаю.','I do not know yet.'],
+ ['not_needed','Пока напоминание не нужно.','I do not need a reminder for now.']
+ ]}
+ ],
+ afterQuestions:['Если хочешь, чат Compass можно закрепить вверху списка чатов Telegram, чтобы его было проще находить. На Android для этого можно нажать и удерживать чат в списке, затем выбрать значок закрепления 📌. Закреплённый чат останется наверху.','If you want, you can pin the Compass chat at the top of your Telegram chat list so it is easier to find. On Android, press and hold the chat in the list, then choose the pin icon 📌. The pinned chat will stay at the top.']
+};
+export const blocks = [firstBlock,secondBlock,thirdBlock,fourthBlock,fifthBlock,sixthBlock,seventhBlock,eighthBlock,ninthBlock,tenthBlock,eleventhBlock,twelfthBlock,thirteenthBlock,fourteenthBlock,fifteenthBlock,sixteenthBlock,seventeenthBlock,eighteenthBlock,nineteenthBlock,twentiethBlock,twentyFirstBlock,twentySecondBlock,twentyThirdBlock,twentyFourthBlock,twentyFifthBlock,twentySixthBlock,twentySeventhBlock,twentyEighthBlock,twentyNinthBlock,block];

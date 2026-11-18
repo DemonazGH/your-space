@@ -56,7 +56,7 @@ export function reviewCandidate({path,sha,data},seen={},catalog=blocks) {
    const answer=data.answers[question.id];
    return {
     questionId:question.id,question:question.title[0],skipped:answer.skipped,
-    selected:answer.values.map(value=>({id:value,label:question.options.find(option=>option[0]===value)?.[1]||(value==='other'?question.customAnswerLabel?.[0]:null)||globalOptions[value]})),
+    selected:answer.values.map(value=>({id:value,label:question.options.find(option=>option[0]===value)?.[1]||(value==='other'?(question.customAnswerLabel||question.otherLabel)?.[0]:null)||globalOptions[value]})),
     text:answer.text
    };
   })

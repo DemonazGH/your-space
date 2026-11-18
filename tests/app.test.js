@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {block,blocks,questionAnswered,twentyEighthBlock} from '../questions.js';
+import {block,blocks,questionAnswered,twentyEighthBlock,twentyNinthBlock} from '../questions.js';
 
 function app({cloudMode=true,definition=block}={}){
  const elements=new Map(),memory=new Map(),queued=[];
@@ -291,7 +291,7 @@ test('First-use questions have no old entry mockup and not trying remains a comp
 
 test('Block 29 saves a written idea or a selected reminder preference',()=>{
  for(const [choice,customText] of [['plans',''],['other','Взять книгу'],['none','']]){
-  const a=app();a.start();
+  const a=app({definition:twentyNinthBlock});a.start();
   assert.match(a.element('#app').innerHTML,/Свой вариант/);
   assert.match(a.element('#app').innerHTML,/Пока не хочу напоминаний/);
   const select=value=>a.inputs.find(input=>input.value===value).onchange();
@@ -309,6 +309,35 @@ test('Block 29 saves a written idea or a selected reminder preference',()=>{
   a.element('#finish').onclick();
   assert.equal(a.queued.at(-1).completed,true);
   assert.deepEqual(a.queued.at(-1).answers.reminder_choice,{values:[choice],text:customText,skipped:false});
+ }
+});
+
+test('Block 30 keeps optional own text and shows the pin note after the questions in both languages',()=>{
+ for(const [language,locale] of ['ru','en'].entries()){
+  const a=app();a.start();
+  if(locale==='en')a.languages[1].onclick();
+  const select=value=>a.inputs.find(input=>input.value===value).onchange();
+  assert.match(a.element('#app').innerHTML,new RegExp(block.questions[0].otherLabel[language]));
+  assert.ok(!a.element('#app').innerHTML.includes(block.afterQuestions[language]));
+  select('yes');
+  a.element('#note').oninput({target:{value:'Свой пример'}});
+  assert.deepEqual(a.queued.at(-1).answers.anticipated_event,{values:['yes'],text:'Свой пример',skipped:false});
+  select('other');
+  assert.deepEqual(a.queued.at(-1).answers.anticipated_event,{values:['other'],text:'Свой пример',skipped:false});
+  a.element('#next').onclick();
+  const lastQuestion=a.element('#app').innerHTML;
+  assert.ok(lastQuestion.includes(block.afterQuestions[language]));
+  assert.ok(lastQuestion.indexOf('<aside class="note"')>lastQuestion.indexOf('</fieldset>'));
+  assert.equal(a.element('#finish').disabled,true);
+  select('hour');select('30min');
+  assert.deepEqual(a.queued.at(-1).answers.event_notice,{values:['30min'],text:'',skipped:false});
+  assert.equal(a.queued.at(-1).completed,false);
+  a.element('#next').onclick();
+  assert.ok(a.element('#app').innerHTML.includes(block.afterQuestions[language]));
+  assert.equal(a.element('#finish').disabled,false);
+  a.element('#finish').onclick();
+  assert.equal(a.queued.at(-1).completed,true);
+  assert.ok(a.element('#app').innerHTML.includes(block.afterQuestions[language]));
  }
 });
 

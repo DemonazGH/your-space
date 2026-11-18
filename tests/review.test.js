@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {block,blocks,sixteenthBlock,twentyEighthBlock} from '../questions.js';
+import {block,blocks,sixteenthBlock,twentyEighthBlock,twentyNinthBlock} from '../questions.js';
 import {participantPath,parseParticipantRecord,reviewCandidate,legacyBaselineEntries} from '../scripts/review-answers.mjs';
 
 const sessionId='11111111-1111-4111-8111-111111111111';
@@ -49,12 +49,29 @@ test('Review preserves optional text as untrusted evidence and maps choices, ref
 });
 
 test('Block 29 reports the displayed labels for a custom idea or no reminders',()=>{
- const record=sample(),answer=record.data.answers.reminder_choice;
+ const record=sample(twentyNinthBlock),answer=record.data.answers.reminder_choice;
  answer.values=['other'];answer.text='Взять книгу';
  assert.deepEqual(reviewCandidate(record).answers[0].selected,[{id:'other',label:'Свой вариант'}]);
  assert.equal(reviewCandidate(record).answers[0].text,'Взять книгу');
  answer.values=['none'];answer.text='';
  assert.deepEqual(reviewCandidate(record).answers[0].selected,[{id:'none',label:'Пока не хочу напоминаний'}]);
+});
+
+test('Block 30 review preserves optional event details and own text while mapping the displayed labels',()=>{
+ const record=sample();
+ record.data.answers.anticipated_event={values:['yes'],text:'Мой пример события',skipped:false};
+ record.data.answers.event_notice={values:['other'],text:'За два часа',skipped:false};
+ const original=structuredClone(record.data),reviewed=reviewCandidate(record);
+ assert.deepEqual(record.data,original);
+ assert.equal(reviewed.answers.length,2);
+ assert.equal(reviewed.answers[0].selected[0].label,block.questions[0].options.find(([id])=>id==='yes')[1]);
+ assert.equal(reviewed.answers[0].text,'Мой пример события');
+ assert.deepEqual(reviewed.answers[1].selected,[{id:'other',label:'Свой вариант'}]);
+ assert.equal(reviewed.answers[1].text,'За два часа');
+ record.data.answers.event_notice={values:[],text:'За два часа',skipped:false};
+ assert.deepEqual(reviewCandidate(record).answers[1].selected,[]);
+ record.data.answers.anticipated_event={values:[],text:'',skipped:true};
+ assert.equal(reviewCandidate(record).answers[0].skipped,true);
 });
 
 test('Review parses several leisure interests or none alone and rejects contradictory saved combinations',()=>{
